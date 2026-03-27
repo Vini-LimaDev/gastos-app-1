@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../hooks/useAuth.jsx'
 import { Wallet, Eye, EyeOff } from 'lucide-react'
 
 export default function Register() {
@@ -15,12 +15,10 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-
     if (password.length < 6) {
       setError('A senha precisa ter pelo menos 6 caracteres')
       return
     }
-
     const result = await register(name, email, password)
     if (result.success) {
       navigate('/dashboard')
@@ -95,11 +93,7 @@ export default function Register() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full py-3"
-            >
+            <button type="submit" disabled={loading} className="btn-primary w-full py-3">
               {loading ? 'Criando conta...' : 'Criar conta'}
             </button>
           </form>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../hooks/useAuth.jsx'
 import { Wallet, Eye, EyeOff } from 'lucide-react'
 
 export default function Login() {
@@ -25,7 +25,6 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-2xl mb-4">
             <Wallet size={32} className="text-white" />
@@ -34,7 +33,6 @@ export default function Login() {
           <p className="text-gray-600 mt-1">Controle seus gastos com facilidade</p>
         </div>
 
-        {/* Card */}
         <div className="card">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Entrar na conta</h2>
 
@@ -78,11 +76,7 @@ export default function Login() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full py-3"
-            >
+            <button type="submit" disabled={loading} className="btn-primary w-full py-3">
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
           </form>

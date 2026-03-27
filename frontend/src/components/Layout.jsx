@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../hooks/useAuth.jsx'
 import { LayoutDashboard, Receipt, LogOut, Wallet } from 'lucide-react'
 
 export default function Layout() {
@@ -20,9 +20,7 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        {/* Logo */}
         <div className="p-6 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
@@ -32,7 +30,6 @@ export default function Layout() {
           </div>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 p-4 space-y-1">
           <NavLink to="/dashboard" className={navClass}>
             <LayoutDashboard size={18} />
@@ -44,7 +41,6 @@ export default function Layout() {
           </NavLink>
         </nav>
 
-        {/* User info */}
         <div className="p-4 border-t border-gray-100">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-semibold text-sm">
@@ -65,7 +61,6 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="flex-1 overflow-auto">
         <Outlet />
       </main>

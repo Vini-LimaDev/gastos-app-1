@@ -1,354 +1,296 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Plus, Search, Filter, Trash2, Edit2, ChevronUp, ChevronDown, RefreshCw } from 'lucide-react'
 import { transactionsAPI } from '../api'
 import TransactionForm from '../components/TransactionForm'
-import { Plus, Search, Pencil, Trash2, Filter, X, ChevronUp, ChevronDown } from 'lucide-react'
 
-const CATEGORIES = ['Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Lazer', 'Educação', 'Vestuário', 'Outros']
+const CATEGORIES = ['Alimentação','Transporte','Moradia','Saúde','Lazer','Educação','Vestuário','Outros']
 
 const CATEGORY_COLORS = {
-  'Alimentação': 'bg-green-100 text-green-700',
-  'Transporte': 'bg-blue-100 text-blue-700',
-  'Moradia': 'bg-yellow-100 text-yellow-700',
-  'Saúde': 'bg-red-100 text-red-700',
-  'Lazer': 'bg-purple-100 text-purple-700',
-  'Educação': 'bg-cyan-100 text-cyan-700',
-  'Vestuário': 'bg-pink-100 text-pink-700',
-  'Outros': 'bg-gray-100 text-gray-700',
+  Alimentação: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  Transporte:  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  Moradia:     'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  Saúde:       'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  Lazer:       'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  Educação:    'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+  Vestuário:   'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
+  Outros:      'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
 }
 
-const defaultFilters = {
-  start_date: '',
-  end_date: '',
-  category: '',
-  type: '',
-  min_amount: '',
-  max_amount: '',
-}
+const fmt = (v) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [editingTx, setEditingTx] = useState(null)
-  const [filters, setFilters] = useState(defaultFilters)
-  const [showFilters, setShowFilters] = useState(false)
-  const [search, setSearch] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState(null)
-  const [sortField, setSortField] = useState('date')
-  const [sortDir, setSortDir] = useState('desc')
+  const [loading, setLoading]           = useState(true)
+  const [showForm, setShowForm]         = useState(false)
+  const [editTx, setEditTx]             = useState(null)
+  const [deleteId, setDeleteId]         = useState(null)
+  const [showFilters, setShowFilters]   = useState(false)
+  const [sortField, setSortField]       = useState('date')
+  const [sortDir, setSortDir]           = useState('desc')
 
-  const fetchTransactions = useCallback(async () => {
+  const [filters, setFilters] = useState({
+    search: '', category: '', type: '', start_date: '', end_date: '',
+    min_amount: '', max_amount: '',
+  })
+
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       const params = {}
-      if (filters.start_date) params.start_date = filters.start_date
-      if (filters.end_date) params.end_date = filters.end_date
-      if (filters.category) params.category = filters.category
-      if (filters.type) params.type = filters.type
-      if (filters.min_amount) params.min_amount = parseFloat(filters.min_amount)
-      if (filters.max_amount) params.max_amount = parseFloat(filters.max_amount)
-
+      if (filters.category)   params.category   = filters.category
+      if (filters.type)       params.type        = filters.type
+      if (filters.start_date) params.start_date  = filters.start_date
+      if (filters.end_date)   params.end_date    = filters.end_date
+      if (filters.min_amount) params.min_amount  = parseFloat(filters.min_amount)
+      if (filters.max_amount) params.max_amount  = parseFloat(filters.max_amount)
       const res = await transactionsAPI.list(params)
-      setTransactions(res.data)
-    } catch (e) {
-      console.error(e)
+      setTransactions(res.data || [])
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [filters.category, filters.type, filters.start_date, filters.end_date, filters.min_amount, filters.max_amount])
 
-  useEffect(() => { fetchTransactions() }, [fetchTransactions])
+  useEffect(() => { load() }, [load])
 
-  const handleDelete = async (id) => {
-    try {
-      await transactionsAPI.delete(id)
-      setTransactions((prev) => prev.filter((t) => t.id !== id))
-      setConfirmDelete(null)
-    } catch (e) {
-      console.error(e)
-    }
+  const handleDelete = async () => {
+    if (!deleteId) return
+    await transactionsAPI.delete(deleteId)
+    setDeleteId(null)
+    load()
   }
 
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
-      setSortDir('desc')
-    }
+  const handleFormSuccess = () => {
+    setShowForm(false)
+    setEditTx(null)
+    load()
   }
 
-  const filtered = transactions
-    .filter((t) => !search || t.description.toLowerCase().includes(search.toLowerCase()))
+  const toggleSort = (field) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortField(field); setSortDir('desc') }
+  }
+
+  const displayed = transactions
+    .filter(t => !filters.search ||
+      t.description.toLowerCase().includes(filters.search.toLowerCase()) ||
+      t.category.toLowerCase().includes(filters.search.toLowerCase())
+    )
     .sort((a, b) => {
-      let va = a[sortField]
-      let vb = b[sortField]
-      if (sortField === 'amount') { va = Number(va); vb = Number(vb) }
-      if (va < vb) return sortDir === 'asc' ? -1 : 1
-      if (va > vb) return sortDir === 'asc' ? 1 : -1
-      return 0
+      let diff = 0
+      if (sortField === 'date')   diff = new Date(a.date) - new Date(b.date)
+      if (sortField === 'amount') diff = a.amount - b.amount
+      return sortDir === 'asc' ? diff : -diff
     })
 
-  const totalExpenses = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-  const totalIncome = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-  const activeFilters = Object.values(filters).filter(Boolean).length
+  const totalIncome  = displayed.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const totalExpense = displayed.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
 
   const SortIcon = ({ field }) => {
-    if (sortField !== field) return <ChevronUp size={14} className="text-gray-300" />
-    return sortDir === 'asc' ? <ChevronUp size={14} className="text-gray-600" /> : <ChevronDown size={14} className="text-gray-600" />
+    if (sortField !== field) return <span className="opacity-30"><ChevronUp size={13} /></span>
+    return sortDir === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />
   }
 
   return (
-    <div className="p-8">
+    <div className="p-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Transações</h1>
-          <p className="text-gray-600 mt-1">Gerencie suas receitas e despesas</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Transações</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{displayed.length} transações encontradas</p>
         </div>
         <button
-          onClick={() => { setEditingTx(null); setShowForm(true) }}
+          onClick={() => { setEditTx(null); setShowForm(true) }}
           className="btn-primary flex items-center gap-2"
         >
-          <Plus size={18} />
-          Nova Transação
+          <Plus size={16} /> Nova Transação
         </button>
       </div>
 
-      {/* Sumário */}
+      {/* Summary */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="card text-center">
-          <p className="text-xs text-gray-500 mb-1">Receitas</p>
-          <p className="text-lg font-bold text-green-600">
-            {totalIncome.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-          </p>
-        </div>
-        <div className="card text-center">
-          <p className="text-xs text-gray-500 mb-1">Despesas</p>
-          <p className="text-lg font-bold text-red-600">
-            {totalExpenses.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-          </p>
-        </div>
-        <div className="card text-center">
-          <p className="text-xs text-gray-500 mb-1">Saldo</p>
-          <p className={`text-lg font-bold ${totalIncome - totalExpenses >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {(totalIncome - totalExpenses).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-          </p>
-        </div>
+        {[
+          { label: 'Receitas', value: totalIncome, color: 'text-primary-600 dark:text-primary-400' },
+          { label: 'Despesas', value: totalExpense, color: 'text-red-500 dark:text-red-400' },
+          { label: 'Saldo', value: totalIncome - totalExpense, color: totalIncome - totalExpense >= 0 ? 'text-primary-600 dark:text-primary-400' : 'text-red-500 dark:text-red-400' },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="card py-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{label}</p>
+            <p className={`text-xl font-bold ${color}`}>{fmt(value)}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Barra de busca e filtros */}
-      <div className="flex gap-3 mb-4">
-        <div className="flex-1 relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por descrição..."
-            className="input-field pl-9"
-          />
-        </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`btn-secondary flex items-center gap-2 ${showFilters ? 'border-green-500 text-green-700' : ''}`}
-        >
-          <Filter size={16} />
-          Filtros
-          {activeFilters > 0 && (
-            <span className="bg-green-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
-              {activeFilters}
-            </span>
-          )}
-        </button>
-        {activeFilters > 0 && (
+      {/* Search + filter bar */}
+      <div className="card mb-4">
+        <div className="flex gap-3">
+          <div className="flex-1 relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={filters.search}
+              onChange={e => setFilters({ ...filters, search: e.target.value })}
+              className="input-field pl-9"
+              placeholder="Buscar por descrição ou categoria..."
+            />
+          </div>
           <button
-            onClick={() => setFilters(defaultFilters)}
-            className="btn-secondary text-red-600 hover:bg-red-50 flex items-center gap-1"
+            onClick={() => setShowFilters(v => !v)}
+            className={`btn-secondary flex items-center gap-2 ${showFilters ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-400' : ''}`}
           >
-            <X size={14} />
-            Limpar
+            <Filter size={16} /> Filtros
           </button>
+        </div>
+
+        {showFilters && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+            <div>
+              <label className="label">Tipo</label>
+              <select value={filters.type} onChange={e => setFilters({ ...filters, type: e.target.value })} className="input-field">
+                <option value="">Todos</option>
+                <option value="income">Receita</option>
+                <option value="expense">Despesa</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Categoria</label>
+              <select value={filters.category} onChange={e => setFilters({ ...filters, category: e.target.value })} className="input-field">
+                <option value="">Todas</option>
+                {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Data início</label>
+              <input type="date" value={filters.start_date} onChange={e => setFilters({ ...filters, start_date: e.target.value })} className="input-field" />
+            </div>
+            <div>
+              <label className="label">Data fim</label>
+              <input type="date" value={filters.end_date} onChange={e => setFilters({ ...filters, end_date: e.target.value })} className="input-field" />
+            </div>
+            <div>
+              <label className="label">Valor mínimo</label>
+              <input type="number" step="0.01" value={filters.min_amount} onChange={e => setFilters({ ...filters, min_amount: e.target.value })} className="input-field" placeholder="0,00" />
+            </div>
+            <div>
+              <label className="label">Valor máximo</label>
+              <input type="number" step="0.01" value={filters.max_amount} onChange={e => setFilters({ ...filters, max_amount: e.target.value })} className="input-field" placeholder="9999,99" />
+            </div>
+            <div className="col-span-2 md:col-span-3 flex justify-end">
+              <button
+                onClick={() => setFilters({ search: '', category: '', type: '', start_date: '', end_date: '', min_amount: '', max_amount: '' })}
+                className="btn-secondary text-sm"
+              >
+                Limpar filtros
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Painel de filtros */}
-      {showFilters && (
-        <div className="card mb-4 grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div>
-            <label className="label">Data início</label>
-            <input type="date" value={filters.start_date}
-              onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
-              className="input-field" />
-          </div>
-          <div>
-            <label className="label">Data fim</label>
-            <input type="date" value={filters.end_date}
-              onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
-              className="input-field" />
-          </div>
-          <div>
-            <label className="label">Categoria</label>
-            <select value={filters.category}
-              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-              className="input-field">
-              <option value="">Todas</option>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">Tipo</label>
-            <select value={filters.type}
-              onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-              className="input-field">
-              <option value="">Todos</option>
-              <option value="expense">Despesa</option>
-              <option value="income">Receita</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">Valor mínimo</label>
-            <input type="number" step="0.01" min="0" value={filters.min_amount}
-              onChange={(e) => setFilters({ ...filters, min_amount: e.target.value })}
-              className="input-field" placeholder="R$ 0,00" />
-          </div>
-          <div>
-            <label className="label">Valor máximo</label>
-            <input type="number" step="0.01" min="0" value={filters.max_amount}
-              onChange={(e) => setFilters({ ...filters, max_amount: e.target.value })}
-              className="input-field" placeholder="R$ 0,00" />
+      {/* Table */}
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : displayed.length === 0 ? (
+        <div className="card text-center py-12 text-gray-400 dark:text-gray-600">
+          Nenhuma transação encontrada
+        </div>
+      ) : (
+        <div className="card overflow-hidden p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+                  <th
+                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none"
+                    onClick={() => toggleSort('date')}
+                  >
+                    <span className="flex items-center gap-1">Data <SortIcon field="date" /></span>
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Descrição</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Categoria</th>
+                  <th
+                    className="text-right px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none"
+                    onClick={() => toggleSort('amount')}
+                  >
+                    <span className="flex items-center justify-end gap-1">Valor <SortIcon field="amount" /></span>
+                  </th>
+                  <th className="px-4 py-3 w-20" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                {displayed.map((t) => (
+                  <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                      {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{t.description}</span>
+                        {t.is_recurring && (
+                          <span title="Recorrente" className="text-blue-400 dark:text-blue-500">
+                            <RefreshCw size={12} />
+                          </span>
+                        )}
+                      </div>
+                      {t.notes && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t.notes}</p>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${CATEGORY_COLORS[t.category] || 'bg-gray-100 text-gray-700'}`}>
+                        {t.category}
+                      </span>
+                    </td>
+                    <td className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${
+                      t.type === 'income' ? 'text-primary-600 dark:text-primary-400' : 'text-red-500 dark:text-red-400'
+                    }`}>
+                      {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => { setEditTx(t); setShowForm(true) }}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteId(t.id)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* Tabela */}
-      <div className="card p-0 overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-            <Receipt size={48} className="mb-3 opacity-30" />
-            <p className="text-sm">Nenhuma transação encontrada</p>
-            <button
-              onClick={() => { setEditingTx(null); setShowForm(true) }}
-              className="mt-3 text-green-600 text-sm hover:underline"
-            >
-              Adicionar primeira transação
-            </button>
-          </div>
-        ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th
-                  onClick={() => handleSort('date')}
-                  className="text-left text-xs font-semibold text-gray-500 uppercase px-6 py-3 cursor-pointer hover:text-gray-700 select-none"
-                >
-                  <div className="flex items-center gap-1">Data <SortIcon field="date" /></div>
-                </th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-6 py-3">
-                  Descrição
-                </th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-6 py-3">
-                  Categoria
-                </th>
-                <th
-                  onClick={() => handleSort('amount')}
-                  className="text-right text-xs font-semibold text-gray-500 uppercase px-6 py-3 cursor-pointer hover:text-gray-700 select-none"
-                >
-                  <div className="flex items-center justify-end gap-1">Valor <SortIcon field="amount" /></div>
-                </th>
-                <th className="text-right text-xs font-semibold text-gray-500 uppercase px-6 py-3">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtered.map((t) => (
-                <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-3 text-sm text-gray-600 whitespace-nowrap">{t.date}</td>
-                  <td className="px-6 py-3">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{t.description}</p>
-                      {t.notes && <p className="text-xs text-gray-400 mt-0.5">{t.notes}</p>}
-                    </div>
-                  </td>
-                  <td className="px-6 py-3">
-                    <span className={`inline-flex text-xs font-medium px-2.5 py-1 rounded-full ${CATEGORY_COLORS[t.category] || 'bg-gray-100 text-gray-600'}`}>
-                      {t.category}
-                    </span>
-                  </td>
-                  <td className={`px-6 py-3 text-sm font-semibold text-right whitespace-nowrap ${
-                    t.type === 'income' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {t.type === 'income' ? '+' : '-'}
-                    {t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  </td>
-                  <td className="px-6 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => { setEditingTx(t); setShowForm(true) }}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Editar"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDelete(t.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Excluir"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Modal de confirmação de exclusão */}
-      {confirmDelete && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
-            <h3 className="text-base font-semibold text-gray-900 mb-2">Confirmar exclusão</h3>
-            <p className="text-sm text-gray-600 mb-5">
-              Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.
-            </p>
+      {/* Delete confirmation */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Remover transação?</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Esta ação não pode ser desfeita.</p>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmDelete(null)} className="btn-secondary flex-1">
-                Cancelar
-              </button>
-              <button onClick={() => handleDelete(confirmDelete)} className="btn-danger flex-1">
-                Excluir
-              </button>
+              <button onClick={() => setDeleteId(null)} className="btn-secondary flex-1">Cancelar</button>
+              <button onClick={handleDelete} className="btn-danger flex-1">Remover</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal de formulário */}
+      {/* Transaction form */}
       {showForm && (
         <TransactionForm
-          transaction={editingTx}
-          onSuccess={() => { setShowForm(false); setEditingTx(null); fetchTransactions() }}
-          onClose={() => { setShowForm(false); setEditingTx(null) }}
+          transaction={editTx}
+          onSuccess={handleFormSuccess}
+          onClose={() => { setShowForm(false); setEditTx(null) }}
         />
       )}
     </div>
   )
 }
-
-// Fix missing import
-const Receipt = ({ size, className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <polyline points="3 6 5 1 8 6 11 1 14 6 17 1 19 6" />
-    <path d="M3 6h16v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6z" />
-    <line x1="8" y1="11" x2="16" y2="11" />
-    <line x1="8" y1="15" x2="16" y2="15" />
-  </svg>
-)

@@ -1,61 +1,54 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from database import supabase, supabase_admin
+from database import supabase
 from models import UserRegister, UserLogin, Token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
         user = supabase.auth.get_user(token)
         if not user or not user.user:
-            raise HTTPException(status_code=401, detail="Token invalido ou expirado")
-        return {"id": user.user.id, "email": user.user.email, "token": token}
+            raise HTTPException(status_code=401, detail="Token inválido")
+        return {
+            "id": user.user.id,
+            "email": user.user.email,
+            "token": token,
+        }
     except Exception:
-        raise HTTPException(status_code=401, detail="Token invalido ou expirado")
+        raise HTTPException(status_code=401, detail="Não autorizado")
 
 
 @router.post("/register", response_model=Token)
 async def register(data: UserRegister):
     try:
-        response = supabase.auth.sign_up({
+        result = supabase.auth.sign_up({
             "email": data.email,
             "password": data.password,
-            "options": {"data": {"name": data.name}}
         })
-
-        if not response.user:
+        if not result.user:
             raise HTTPException(status_code=400, detail="Erro ao criar conta")
 
-        # Tenta inserir perfil, mas ignora erro caso o trigger ja tenha criado
+        user_id = result.user.id
+        # Create profile
         try:
-            supabase_admin.table("profiles").upsert({
-                "id": response.user.id,
+            supabase.table("profiles").insert({
+                "id": user_id,
                 "email": data.email,
                 "name": data.name,
             }).execute()
         except Exception:
-            pass
+            pass  # profile may already exist
 
-        token = response.session.access_token if response.session else ""
-
-        if not token:
-            raise HTTPException(
-                status_code=400,
-                detail="Confirme seu email antes de fazer login"
-            )
-
-        return Token(
-            access_token=token,
-            user={
-                "id": response.user.id,
-                "email": response.user.email,
-                "name": data.name,
-            }
-        )
+        token = result.session.access_token if result.session else ""
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {"id": user_id, "email": data.email, "name": data.name},
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -65,32 +58,27 @@ async def register(data: UserRegister):
 @router.post("/login", response_model=Token)
 async def login(data: UserLogin):
     try:
-        response = supabase.auth.sign_in_with_password({
+        result = supabase.auth.sign_in_with_password({
             "email": data.email,
             "password": data.password,
         })
+        if not result.user or not result.session:
+            raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-        if not response.user or not response.session:
-            raise HTTPException(status_code=401, detail="Email ou senha incorretos")
+        user_id = result.user.id
+        # Fetch profile
+        profile = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
+        name = profile.data.get("name", "") if profile.data else result.user.email
 
-        try:
-            profile = supabase.table("profiles").select("name").eq("id", response.user.id).single().execute()
-            name = profile.data.get("name", "") if profile.data else ""
-        except Exception:
-            name = response.user.user_metadata.get("name", "") if response.user.user_metadata else ""
-
-        return Token(
-            access_token=response.session.access_token,
-            user={
-                "id": response.user.id,
-                "email": response.user.email,
-                "name": name,
-            }
-        )
+        return {
+            "access_token": result.session.access_token,
+            "token_type": "bearer",
+            "user": {"id": user_id, "email": result.user.email, "name": name},
+        }
     except HTTPException:
         raise
-    except Exception:
-        raise HTTPException(status_code=401, detail="Email ou senha incorretos")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
 
 @router.post("/logout")
@@ -99,18 +87,12 @@ async def logout(current_user: dict = Depends(get_current_user)):
         supabase.auth.sign_out()
     except Exception:
         pass
-    return {"message": "Logout realizado com sucesso"}
+    return {"message": "Logout realizado"}
 
 
 @router.get("/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
-    try:
-        profile = supabase.table("profiles").select("*").eq("id", current_user["id"]).single().execute()
-        name = profile.data.get("name", "") if profile.data else ""
-    except Exception:
-        name = ""
-    return {
-        "id": current_user["id"],
-        "email": current_user["email"],
-        "name": name,
-    }
+    profile = supabase.table("profiles").select("*").eq("id", current_user["id"]).single().execute()
+    if profile.data:
+        return profile.data
+    return current_user

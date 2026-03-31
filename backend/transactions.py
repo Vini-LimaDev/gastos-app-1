@@ -9,7 +9,8 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 
 def build_query(user_id: str, start_date=None, end_date=None,
-                category=None, type=None, min_amount=None, max_amount=None):
+                category=None, type=None, min_amount=None, max_amount=None,
+                is_recurring=None):
     query = supabase.table("transactions").select("*").eq("user_id", user_id)
 
     if start_date:
@@ -24,6 +25,8 @@ def build_query(user_id: str, start_date=None, end_date=None,
         query = query.gte("amount", min_amount)
     if max_amount is not None:
         query = query.lte("amount", max_amount)
+    if is_recurring is not None:
+        query = query.eq("is_recurring", is_recurring)
 
     return query
 
@@ -36,12 +39,13 @@ async def list_transactions(
     type: Optional[str] = Query(None),
     min_amount: Optional[float] = Query(None),
     max_amount: Optional[float] = Query(None),
+    is_recurring: Optional[bool] = Query(None),
     current_user: dict = Depends(get_current_user)
 ):
     try:
         query = build_query(
             current_user["id"], start_date, end_date,
-            category, type, min_amount, max_amount
+            category, type, min_amount, max_amount, is_recurring
         )
         result = query.order("date", desc=True).execute()
         return result.data or []
@@ -63,6 +67,8 @@ async def create_transaction(
             "category": data.category,
             "date": str(data.date),
             "notes": data.notes,
+            "is_recurring": data.is_recurring,
+            "recurrence_interval": data.recurrence_interval,
         }
         result = supabase.table("transactions").insert(payload).execute()
         if not result.data:
@@ -97,7 +103,6 @@ async def update_transaction(
     data: TransactionUpdate,
     current_user: dict = Depends(get_current_user)
 ):
-    # Verificar se pertence ao usuário
     existing = supabase.table("transactions")\
         .select("id")\
         .eq("id", transaction_id)\
@@ -146,7 +151,6 @@ async def get_monthly_summary(
     current_user: dict = Depends(get_current_user)
 ):
     """Resumo do mês: total de receitas, despesas e saldo."""
-    from datetime import date
     import calendar
 
     start = date(year, month, 1)

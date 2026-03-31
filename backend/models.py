@@ -3,7 +3,7 @@ from typing import Optional, Literal
 from datetime import date, datetime
 
 
-# ---------- Auth ----------
+# ── Auth ──────────────────────────────────────────────
 class UserRegister(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
@@ -21,7 +21,7 @@ class Token(BaseModel):
     user: dict
 
 
-# ---------- Transactions ----------
+# ── Transactions ──────────────────────────────────────
 CategoryType = Literal[
     "Alimentação",
     "Transporte",
@@ -34,6 +34,7 @@ CategoryType = Literal[
 ]
 
 TransactionType = Literal["expense", "income"]
+RecurrenceInterval = Literal["monthly", "weekly", "yearly"]
 
 
 class TransactionCreate(BaseModel):
@@ -43,6 +44,8 @@ class TransactionCreate(BaseModel):
     category: CategoryType
     date: date
     notes: Optional[str] = None
+    is_recurring: bool = False
+    recurrence_interval: Optional[RecurrenceInterval] = None
 
 
 class TransactionUpdate(BaseModel):
@@ -52,6 +55,8 @@ class TransactionUpdate(BaseModel):
     category: Optional[CategoryType] = None
     date: Optional[date] = None
     notes: Optional[str] = None
+    is_recurring: Optional[bool] = None
+    recurrence_interval: Optional[RecurrenceInterval] = None
 
 
 class TransactionResponse(BaseModel):
@@ -63,10 +68,65 @@ class TransactionResponse(BaseModel):
     category: str
     date: str
     notes: Optional[str]
+    is_recurring: bool
+    recurrence_interval: Optional[str]
     created_at: str
 
 
-# ---------- Filters ----------
+# ── Budgets ───────────────────────────────────────────
+class BudgetCreate(BaseModel):
+    category: CategoryType
+    limit_amount: float = Field(gt=0)
+    month: int = Field(ge=1, le=12)
+    year: int = Field(ge=2000, le=2100)
+
+
+class BudgetUpdate(BaseModel):
+    limit_amount: Optional[float] = Field(None, gt=0)
+
+
+class BudgetResponse(BaseModel):
+    id: str
+    user_id: str
+    category: str
+    limit_amount: float
+    month: int
+    year: int
+    created_at: str
+
+
+# ── Goals ─────────────────────────────────────────────
+class GoalCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    target_amount: float = Field(gt=0)
+    current_amount: float = Field(ge=0, default=0)
+    deadline: Optional[date] = None
+    emoji: Optional[str] = "🎯"
+    notes: Optional[str] = None
+
+
+class GoalUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    target_amount: Optional[float] = Field(None, gt=0)
+    current_amount: Optional[float] = Field(None, ge=0)
+    deadline: Optional[date] = None
+    emoji: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class GoalResponse(BaseModel):
+    id: str
+    user_id: str
+    name: str
+    target_amount: float
+    current_amount: float
+    deadline: Optional[str]
+    emoji: Optional[str]
+    notes: Optional[str]
+    created_at: str
+
+
+# ── Filters ───────────────────────────────────────────
 class TransactionFilters(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -74,3 +134,4 @@ class TransactionFilters(BaseModel):
     type: Optional[TransactionType] = None
     min_amount: Optional[float] = None
     max_amount: Optional[float] = None
+    is_recurring: Optional[bool] = None

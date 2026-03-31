@@ -1,12 +1,12 @@
-import { useState, createContext, useContext } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import { authAPI } from '../api'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem('user')
-    return stored ? JSON.parse(stored) : null
+    const saved = localStorage.getItem('user')
+    return saved ? JSON.parse(saved) : null
   })
   const [loading, setLoading] = useState(false)
 
@@ -43,7 +43,7 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
-    try { await authAPI.logout() } catch {}
+    try { await authAPI.logout() } catch { /* ignore */ }
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     setUser(null)
@@ -56,8 +56,8 @@ export function AuthProvider({ children }) {
   )
 }
 
-export const useAuth = () => {
+export function useAuth() {
   const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth deve ser usado dentro de AuthProvider')
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
 }

@@ -25,11 +25,11 @@ export default function Login() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-primary-600 dark:bg-primary-500 flex items-center justify-center mx-auto mb-3">
-            <TrendingUp size={26} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">GastosApp</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Controle seu dinheiro</p>
+          <img 
+            src="/gemini-svg.svg" 
+            alt="Planilha de Gastos" 
+            className="w-100% h-100% object-contain mx-auto mb-3"
+          />
         </div>
 
         <div className="card">

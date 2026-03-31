@@ -35,14 +35,11 @@ export default function Layout() {
       <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 flex flex-col shadow-sm flex-shrink-0">
         {/* Logo */}
         <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary-600 dark:bg-primary-500 flex items-center justify-center">
-              <TrendingUp size={18} className="text-white" />
-            </div>
-            <div>
-              <p className="font-bold text-gray-900 dark:text-gray-100 leading-tight">GastosApp</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Controle Financeiro</p>
-            </div>
+          <div className="flex items-center gap-2">
+            <img 
+              src="/gemini-svg.svg" 
+              className="w-100% h-20 object-contain"
+            />
           </div>
         </div>
 

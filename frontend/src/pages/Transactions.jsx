@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Filter, Trash2, Edit2, ChevronUp, ChevronDown, RefreshCw } from 'lucide-react'
+import { Plus, Search, Filter, Trash2, Edit2, ChevronUp, ChevronDown, RefreshCw, ScanLine } from 'lucide-react'
 import { transactionsAPI } from '../api'
 import TransactionForm from '../components/TransactionForm'
+import InvoiceImport from '../components/InvoiceImport'
 
 const CATEGORIES = ['Alimentação','Transporte','Moradia','Saúde','Lazer','Educação','Vestuário','Outros']
 
@@ -23,6 +24,7 @@ export default function Transactions() {
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading]           = useState(true)
   const [showForm, setShowForm]         = useState(false)
+  const [showImport, setShowImport]     = useState(false)
   const [editTx, setEditTx]             = useState(null)
   const [deleteId, setDeleteId]         = useState(null)
   const [showFilters, setShowFilters]   = useState(false)
@@ -99,12 +101,21 @@ export default function Transactions() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Transações</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{displayed.length} transações encontradas</p>
         </div>
-        <button
-          onClick={() => { setEditTx(null); setShowForm(true) }}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus size={16} /> Nova Transação
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowImport(true)}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <ScanLine size={16} />
+            <span className="hidden sm:inline">Importar Fatura</span>
+          </button>
+          <button
+            onClick={() => { setEditTx(null); setShowForm(true) }}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus size={16} /> Nova Transação
+          </button>
+        </div>
       </div>
 
       {/* Summary */}
@@ -289,6 +300,14 @@ export default function Transactions() {
           transaction={editTx}
           onSuccess={handleFormSuccess}
           onClose={() => { setShowForm(false); setEditTx(null) }}
+        />
+      )}
+
+      {/* Invoice import */}
+      {showImport && (
+        <InvoiceImport
+          onClose={() => setShowImport(false)}
+          onSuccess={() => { setShowImport(false); load() }}
         />
       )}
     </div>

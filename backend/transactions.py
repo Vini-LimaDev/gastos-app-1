@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional, List
 from datetime import date
+from dateutil.relativedelta import relativedelta
+import uuid
 from auth import get_current_user
 from database import supabase
 from models import TransactionCreate, TransactionUpdate, TransactionResponse
@@ -53,95 +55,60 @@ async def list_transactions(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/", response_model=dict, status_code=201)
+@router.post("/", response_model=List[dict], status_code=201)
 async def create_transaction(
     data: TransactionCreate,
     current_user: dict = Depends(get_current_user)
 ):
     try:
-        payload = {
-            "user_id": current_user["id"],
-            "description": data.description,
-            "amount": data.amount,
-            "type": data.type,
-            "category": data.category,
-            "date": str(data.date),
-            "notes": data.notes,
-            "is_recurring": data.is_recurring,
-            "recurrence_interval": data.recurrence_interval,
-        }
-        result = supabase.table("transactions").insert(payload).execute()
-        if not result.data:
-            raise HTTPException(status_code=500, detail="Erro ao criar transação")
-        return result.data[0]
+        if data.installment_total and data.installment_total >= 2:
+            # Cria N parcelas de uma vez
+            group_id = str(uuid.uuid4())
+            records = []
+            for i in range(1, data.installment_total + 1):
+                records.append({
+                    "user_id": current_user["id"],
+                    "description": f"{data.description} ({i}/{data.installment_total})",
+                    "amount": data.amount,
+                    "type": data.type,
+                    "category": data.category,
+                    "date": str(data.date + relativedelta(months=i - 1)),
+                    "notes": data.notes,
+                    "is_recurring": False,
+                    "recurrence_interval": None,
+                    "installment_group_id": group_id,
+                    "installment_number": i,
+                    "installment_total": data.installment_total,
+                })
+            result = supabase.table("transactions").insert(records).execute()
+            if not result.data:
+                raise HTTPException(status_code=500, detail="Erro ao criar parcelas")
+            return result.data
+        else:
+            # Transação normal
+            payload = {
+                "user_id": current_user["id"],
+                "description": data.description,
+                "amount": data.amount,
+                "type": data.type,
+                "category": data.category,
+                "date": str(data.date),
+                "notes": data.notes,
+                "is_recurring": data.is_recurring,
+                "recurrence_interval": data.recurrence_interval,
+                "installment_group_id": None,
+                "installment_number": None,
+                "installment_total": None,
+            }
+            result = supabase.table("transactions").insert(payload).execute()
+            if not result.data:
+                raise HTTPException(status_code=500, detail="Erro ao criar transação")
+            return result.data
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/{transaction_id}", response_model=dict)
-async def get_transaction(
-    transaction_id: str,
-    current_user: dict = Depends(get_current_user)
-):
-    result = supabase.table("transactions")\
-        .select("*")\
-        .eq("id", transaction_id)\
-        .eq("user_id", current_user["id"])\
-        .single()\
-        .execute()
-
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Transação não encontrada")
-    return result.data
-
-
-@router.put("/{transaction_id}", response_model=dict)
-async def update_transaction(
-    transaction_id: str,
-    data: TransactionUpdate,
-    current_user: dict = Depends(get_current_user)
-):
-    existing = supabase.table("transactions")\
-        .select("id")\
-        .eq("id", transaction_id)\
-        .eq("user_id", current_user["id"])\
-        .single()\
-        .execute()
-
-    if not existing.data:
-        raise HTTPException(status_code=404, detail="Transação não encontrada")
-
-    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
-    if "date" in update_data:
-        update_data["date"] = str(update_data["date"])
-
-    result = supabase.table("transactions")\
-        .update(update_data)\
-        .eq("id", transaction_id)\
-        .execute()
-
-    return result.data[0]
-
-
-@router.delete("/{transaction_id}", status_code=204)
-async def delete_transaction(
-    transaction_id: str,
-    current_user: dict = Depends(get_current_user)
-):
-    existing = supabase.table("transactions")\
-        .select("id")\
-        .eq("id", transaction_id)\
-        .eq("user_id", current_user["id"])\
-        .single()\
-        .execute()
-
-    if not existing.data:
-        raise HTTPException(status_code=404, detail="Transação não encontrada")
-
-    supabase.table("transactions").delete().eq("id", transaction_id).execute()
-    return None
 
 
 @router.get("/summary/monthly", response_model=dict)
@@ -222,3 +189,81 @@ async def get_yearly_summary(
             for m, v in monthly.items()
         ]
     }
+
+
+@router.get("/{transaction_id}", response_model=dict)
+async def get_transaction(
+    transaction_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    result = supabase.table("transactions")\
+        .select("*")\
+        .eq("id", transaction_id)\
+        .eq("user_id", current_user["id"])\
+        .single()\
+        .execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Transação não encontrada")
+    return result.data
+
+
+@router.put("/{transaction_id}", response_model=dict)
+async def update_transaction(
+    transaction_id: str,
+    data: TransactionUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    existing = supabase.table("transactions")\
+        .select("id")\
+        .eq("id", transaction_id)\
+        .eq("user_id", current_user["id"])\
+        .single()\
+        .execute()
+
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Transação não encontrada")
+
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    if "date" in update_data:
+        update_data["date"] = str(update_data["date"])
+
+    result = supabase.table("transactions")\
+        .update(update_data)\
+        .eq("id", transaction_id)\
+        .execute()
+
+    return result.data[0]
+
+
+@router.delete("/installment-group/{group_id}", status_code=204)
+async def delete_installment_group(
+    group_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Deleta todas as parcelas de um grupo."""
+    supabase.table("transactions")\
+        .delete()\
+        .eq("installment_group_id", group_id)\
+        .eq("user_id", current_user["id"])\
+        .execute()
+    return None
+
+
+@router.delete("/{transaction_id}", status_code=204)
+async def delete_transaction(
+    transaction_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    existing = supabase.table("transactions")\
+        .select("id")\
+        .eq("id", transaction_id)\
+        .eq("user_id", current_user["id"])\
+        .single()\
+        .execute()
+
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Transação não encontrada")
+
+    supabase.table("transactions").delete().eq("id", transaction_id).execute()
+    return None

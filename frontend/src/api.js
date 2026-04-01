@@ -43,6 +43,8 @@ export const transactionsAPI = {
     api.get('/transactions/summary/monthly', { params: { year, month } }),
   yearlySummary: (year) =>
     api.get('/transactions/summary/yearly', { params: { year } }),
+  deleteInstallmentGroup: (groupId) =>
+    api.delete(`/transactions/installment-group/${groupId}`),
 }
 
 // ── Budgets ───────────────────────────────────────────

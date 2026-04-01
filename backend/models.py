@@ -135,3 +135,26 @@ class TransactionFilters(BaseModel):
     min_amount: Optional[float] = None
     max_amount: Optional[float] = None
     is_recurring: Optional[bool] = None
+
+class TransactionCreate(BaseModel):
+    description: str = Field(min_length=1, max_length=200)
+    amount: float = Field(gt=0)
+    type: TransactionType
+    category: CategoryType
+    date: date
+    notes: Optional[str] = None
+    is_recurring: bool = False
+    recurrence_interval: Optional[RecurrenceInterval] = None
+    # parcelas
+    installment_total: Optional[int] = Field(None, ge=2, le=360)
+
+
+class TransactionUpdate(BaseModel):
+    description: Optional[str] = Field(None, min_length=1, max_length=200)
+    amount: Optional[float] = Field(None, gt=0)
+    type: Optional[TransactionType] = None
+    category: Optional[CategoryType] = None
+    date: Optional[date] = None
+    notes: Optional[str] = None
+    is_recurring: Optional[bool] = None
+    recurrence_interval: Optional[RecurrenceInterval] = None

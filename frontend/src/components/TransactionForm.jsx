@@ -155,7 +155,12 @@ export default function TransactionForm({ transaction, onSuccess, onClose }) {
       }
       onSuccess()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Erro ao salvar transação')
+      const detail = err.response?.data?.detail
+      if (Array.isArray(detail)) {
+        setError(detail.map(d => d.msg).join(' | '))
+      } else {
+        setError(typeof detail === 'string' ? detail : 'Erro ao salvar transação')
+      }
     } finally {
       setLoading(false)
     }

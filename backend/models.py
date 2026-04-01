@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, Literal
-from datetime import date, datetime
+from datetime import date as date_, datetime
+
 
 
 # ── Auth ──────────────────────────────────────────────
@@ -23,14 +24,8 @@ class Token(BaseModel):
 
 # ── Transactions ──────────────────────────────────────
 CategoryType = Literal[
-    "Alimentação",
-    "Transporte",
-    "Moradia",
-    "Saúde",
-    "Lazer",
-    "Educação",
-    "Vestuário",
-    "Outros",
+    "Alimentação", "Transporte", "Moradia", "Saúde",
+    "Lazer", "Educação", "Vestuário", "Outros",
 ]
 
 TransactionType = Literal["expense", "income"]
@@ -42,18 +37,21 @@ class TransactionCreate(BaseModel):
     amount: float = Field(gt=0)
     type: TransactionType
     category: CategoryType
-    date: date
+    date: date_
     notes: Optional[str] = None
     is_recurring: bool = False
     recurrence_interval: Optional[RecurrenceInterval] = None
+    installment_total: Optional[int] = Field(None, ge=2, le=360)
 
 
 class TransactionUpdate(BaseModel):
+    model_config = {"extra": "ignore"}
+
     description: Optional[str] = Field(None, min_length=1, max_length=200)
     amount: Optional[float] = Field(None, gt=0)
     type: Optional[TransactionType] = None
     category: Optional[CategoryType] = None
-    date: Optional[date] = None
+    date: Optional[date_] = None   
     notes: Optional[str] = None
     is_recurring: Optional[bool] = None
     recurrence_interval: Optional[RecurrenceInterval] = None
@@ -100,7 +98,7 @@ class GoalCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     target_amount: float = Field(gt=0)
     current_amount: float = Field(ge=0, default=0)
-    deadline: Optional[date] = None
+    deadline: Optional[date_] = None
     emoji: Optional[str] = "🎯"
     notes: Optional[str] = None
 
@@ -109,7 +107,7 @@ class GoalUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     target_amount: Optional[float] = Field(None, gt=0)
     current_amount: Optional[float] = Field(None, ge=0)
-    deadline: Optional[date] = None
+    deadline: Optional[date_] = None
     emoji: Optional[str] = None
     notes: Optional[str] = None
 
@@ -128,33 +126,10 @@ class GoalResponse(BaseModel):
 
 # ── Filters ───────────────────────────────────────────
 class TransactionFilters(BaseModel):
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
+    start_date: Optional[date_] = None
+    end_date: Optional[date_] = None
     category: Optional[str] = None
     type: Optional[TransactionType] = None
     min_amount: Optional[float] = None
     max_amount: Optional[float] = None
     is_recurring: Optional[bool] = None
-
-class TransactionCreate(BaseModel):
-    description: str = Field(min_length=1, max_length=200)
-    amount: float = Field(gt=0)
-    type: TransactionType
-    category: CategoryType
-    date: date
-    notes: Optional[str] = None
-    is_recurring: bool = False
-    recurrence_interval: Optional[RecurrenceInterval] = None
-    # parcelas
-    installment_total: Optional[int] = Field(None, ge=2, le=360)
-
-
-class TransactionUpdate(BaseModel):
-    description: Optional[str] = Field(None, min_length=1, max_length=200)
-    amount: Optional[float] = Field(None, gt=0)
-    type: Optional[TransactionType] = None
-    category: Optional[CategoryType] = None
-    date: Optional[date] = None
-    notes: Optional[str] = None
-    is_recurring: Optional[bool] = None
-    recurrence_interval: Optional[RecurrenceInterval] = None

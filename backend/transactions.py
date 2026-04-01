@@ -4,7 +4,7 @@ from datetime import date
 from dateutil.relativedelta import relativedelta
 import uuid
 from auth import get_current_user
-from database import supabase
+from database import supabase_admin as supabase
 from models import TransactionCreate, TransactionUpdate, TransactionResponse
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
@@ -214,24 +214,24 @@ async def update_transaction(
     data: TransactionUpdate,
     current_user: dict = Depends(get_current_user)
 ):
-    existing = supabase.table("transactions")\
-        .select("id")\
-        .eq("id", transaction_id)\
-        .eq("user_id", current_user["id"])\
-        .single()\
-        .execute()
-
-    if not existing.data:
-        raise HTTPException(status_code=404, detail="Transação não encontrada")
-
-    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    update_data = data.model_dump(exclude_unset=True)
     if "date" in update_data:
         update_data["date"] = str(update_data["date"])
 
-    result = supabase.table("transactions")\
+    supabase.table("transactions")\
         .update(update_data)\
         .eq("id", transaction_id)\
+        .eq("user_id", current_user["id"])\
         .execute()
+
+    result = supabase.table("transactions")\
+        .select("*")\
+        .eq("id", transaction_id)\
+        .eq("user_id", current_user["id"])\
+        .execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Transação não encontrada")
 
     return result.data[0]
 

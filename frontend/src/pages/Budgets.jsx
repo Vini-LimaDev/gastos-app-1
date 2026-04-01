@@ -21,7 +21,7 @@ const CATEGORY_COLORS = {
 const fmt = (v) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
-function BudgetCard({ budget, spent, onDelete }) {
+function BudgetCard({ budget, spent, onDeleteRequest }) {
   const pct = budget.limit_amount > 0 ? Math.min((spent / budget.limit_amount) * 100, 100) : 0
   const remaining = budget.limit_amount - spent
   const isOver = spent > budget.limit_amount
@@ -58,7 +58,7 @@ function BudgetCard({ budget, spent, onDelete }) {
             </span>
           )}
           <button
-            onClick={() => onDelete(budget.id)}
+            onClick={() => onDeleteRequest(budget.id)}
             className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors ml-1"
           >
             <Trash2 size={15} />
@@ -103,6 +103,7 @@ export default function Budgets() {
   const [error, setError] = useState('')
   const [month] = useState(now.getMonth() + 1)
   const [year] = useState(now.getFullYear())
+  const [deleteId, setDeleteId] = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -138,77 +139,63 @@ export default function Budgets() {
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Remover este orçamento?')) return
-    await budgetsAPI.delete(id)
-    await load()
+  const handleDelete = async () => {
+    if (!deleteId) return
+    try {
+      await budgetsAPI.delete(deleteId)
+      setDeleteId(null)
+      await load()
+    } catch {
+      // silently fail
+    }
   }
-
-  const usedCategories = new Set(budgets.map((b) => b.category))
-  const availableCategories = CATEGORIES.filter((c) => !usedCategories.has(c))
-
-  const MONTH_NAMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Orçamentos</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <Wallet size={24} className="text-primary-600 dark:text-primary-400" />
+            Orçamentos
+          </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Limites mensais para {MONTH_NAMES[month - 1]}/{year}
+            Limites por categoria · {now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
           </p>
         </div>
-        {availableCategories.length > 0 && (
-          <button
-            onClick={() => { setShowForm(true); setForm({ category: availableCategories[0], limit_amount: '' }) }}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus size={16} /> Novo Orçamento
-          </button>
-        )}
+        <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2">
+          <Plus size={16} /> Novo Orçamento
+        </button>
       </div>
 
-      {/* Create form */}
+      {/* Form */}
       {showForm && (
-        <div className="card mb-6 border-2 border-primary-200 dark:border-primary-800">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-            <Wallet size={18} className="text-primary-600 dark:text-primary-400" />
-            Novo Orçamento
-          </h3>
-          <form onSubmit={handleCreate} className="grid grid-cols-2 gap-4">
-            {error && (
-              <div className="col-span-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
-                {error}
-              </div>
-            )}
-            <div>
-              <label className="label">Categoria</label>
-              <select
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="input-field"
-              >
-                {availableCategories.map((c) => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="label">Limite Mensal (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="1"
-                value={form.limit_amount}
-                onChange={(e) => setForm({ ...form, limit_amount: e.target.value })}
-                className="input-field"
-                placeholder="500,00"
-                required
-              />
-            </div>
-            <div className="col-span-2 flex gap-3 justify-end">
-              <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">Cancelar</button>
-              <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Salvando...' : 'Criar Orçamento'}</button>
-            </div>
+        <div className="card mb-6">
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Definir orçamento</h2>
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">{error}</div>
+          )}
+          <form onSubmit={handleCreate} className="flex flex-col sm:flex-row gap-3">
+            <select
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+              className="input-field flex-1"
+            >
+              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            </select>
+            <input
+              type="number"
+              placeholder="Limite (R$)"
+              value={form.limit_amount}
+              onChange={(e) => setForm({ ...form, limit_amount: e.target.value })}
+              className="input-field flex-1"
+              min="0"
+              step="0.01"
+              required
+            />
+            <button type="submit" disabled={saving} className="btn-primary whitespace-nowrap">
+              {saving ? 'Salvando...' : 'Criar Orçamento'}
+            </button>
           </form>
         </div>
       )}
@@ -231,9 +218,40 @@ export default function Budgets() {
               key={b.id}
               budget={b}
               spent={spentByCategory[b.category] || 0}
-              onDelete={handleDelete}
+              onDeleteRequest={setDeleteId}
             />
           ))}
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                <Trash2 size={18} className="text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Remover orçamento?</h3>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 ml-13 pl-1">
+              Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteId(null)}
+                className="btn-secondary flex-1"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                className="btn-danger flex-1"
+              >
+                Remover
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

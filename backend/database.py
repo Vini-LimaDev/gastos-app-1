@@ -13,3 +13,9 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 supabase_admin: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY or SUPABASE_KEY)
+
+def get_authed_client(token: str) -> Client:
+    """Retorna um cliente Supabase autenticado com o JWT do usuário."""
+    client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    client.postgrest.auth(token)
+    return client

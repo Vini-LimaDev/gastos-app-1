@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional, List
 from auth import get_current_user
-from database import supabase
+from database import supabase_admin as supabase
 from models import BudgetCreate, BudgetUpdate
 
 router = APIRouter(prefix="/budgets", tags=["budgets"])

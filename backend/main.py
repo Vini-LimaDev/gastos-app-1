@@ -5,6 +5,8 @@ import auth
 import transactions
 import budgets
 import goals
+from categories import router as categories_router
+
 
 load_dotenv()
 
@@ -33,6 +35,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(transactions.router, prefix="/api")
 app.include_router(budgets.router, prefix="/api")
 app.include_router(goals.router, prefix="/api")
+app.include_router(categories_router, prefix="/api")
 
 @app.get("/")
 def root():

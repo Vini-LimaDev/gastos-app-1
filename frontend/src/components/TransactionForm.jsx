@@ -2,11 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, RefreshCw, CreditCard } from 'lucide-react'
 import { transactionsAPI } from '../api'
 import DatePicker from './DatePicker'
-
-const CATEGORIES = [
-  'Alimentação', 'Transporte', 'Moradia', 'Saúde',
-  'Lazer', 'Educação', 'Vestuário', 'Outros',
-]
+import { useCategories } from '../hooks/useCategories'
 
 const RECURRENCE_OPTIONS = [
   { value: 'monthly', label: 'Mensal' },
@@ -38,6 +34,7 @@ export default function TransactionForm({ transaction, onSuccess, onClose }) {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
 
+  const { categories } = useCategories()
   const isEditing = !!transaction
 
   useEffect(() => {
@@ -272,7 +269,9 @@ export default function TransactionForm({ transaction, onSuccess, onClose }) {
           <div>
             <label className="label">Categoria</label>
             <select name="category" value={form.category} onChange={handleChange} className="input-field" required>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categories.map((c) => (
+                <option key={c.name} value={c.name}>{c.icon} {c.name}</option>
+              ))}
             </select>
           </div>
 

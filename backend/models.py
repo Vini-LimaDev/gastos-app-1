@@ -23,10 +23,8 @@ class Token(BaseModel):
 
 
 # ── Transactions ──────────────────────────────────────
-CategoryType = Literal[
-    "Alimentação", "Transporte", "Moradia", "Saúde",
-    "Lazer", "Educação", "Vestuário", "Outros",
-]
+# Aceita qualquer string — validação de existência fica no router se necessário
+CategoryType = str
 
 TransactionType = Literal["expense", "income"]
 RecurrenceInterval = Literal["monthly", "weekly", "yearly"]

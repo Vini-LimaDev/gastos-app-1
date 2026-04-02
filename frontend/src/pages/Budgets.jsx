@@ -1,27 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Wallet, Plus, Trash2, AlertTriangle, CheckCircle2, TrendingDown } from 'lucide-react'
 import { budgetsAPI, transactionsAPI } from '../api'
-
-const CATEGORIES = [
-  'Alimentação', 'Transporte', 'Moradia', 'Saúde',
-  'Lazer', 'Educação', 'Vestuário', 'Outros',
-]
-
-const CATEGORY_COLORS = {
-  Alimentação: 'bg-orange-500',
-  Transporte: 'bg-blue-500',
-  Moradia: 'bg-purple-500',
-  Saúde: 'bg-red-500',
-  Lazer: 'bg-yellow-500',
-  Educação: 'bg-indigo-500',
-  Vestuário: 'bg-pink-500',
-  Outros: 'bg-gray-500',
-}
+import { useCategories } from '../hooks/useCategories'
 
 const fmt = (v) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
-function BudgetCard({ budget, spent, onDeleteRequest }) {
+function BudgetCard({ budget, spent, onDeleteRequest, categoryMap }) {
   const pct = budget.limit_amount > 0 ? Math.min((spent / budget.limit_amount) * 100, 100) : 0
   const remaining = budget.limit_amount - spent
   const isOver = spent > budget.limit_amount
@@ -33,13 +18,21 @@ function BudgetCard({ budget, spent, onDeleteRequest }) {
     ? 'bg-yellow-500'
     : 'bg-primary-500 dark:bg-primary-400'
 
+  const catColor = categoryMap[budget.category]?.color || '#6b7280'
+  const catIcon  = categoryMap[budget.category]?.icon  || '📦'
+
   return (
     <div className="card">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className={`w-3 h-3 rounded-full ${CATEGORY_COLORS[budget.category] || 'bg-gray-400'}`} />
+          <div
+            className="w-3 h-3 rounded-full flex-shrink-0"
+            style={{ backgroundColor: catColor }}
+          />
           <div>
-            <p className="font-semibold text-gray-900 dark:text-gray-100">{budget.category}</p>
+            <p className="font-semibold text-gray-900 dark:text-gray-100">
+              {catIcon} {budget.category}
+            </p>
             <p className="text-xs text-gray-500 dark:text-gray-400">Limite: {fmt(budget.limit_amount)}</p>
           </div>
         </div>
@@ -105,6 +98,8 @@ export default function Budgets() {
   const [year] = useState(now.getFullYear())
   const [deleteId, setDeleteId] = useState(null)
 
+  const { categories, categoryMap } = useCategories()
+
   const load = async () => {
     setLoading(true)
     try {
@@ -123,6 +118,13 @@ export default function Budgets() {
 
   useEffect(() => { load() }, [])
 
+  // Atualiza categoria padrão do form quando categorias carregam
+  useEffect(() => {
+    if (categories.length > 0) {
+      setForm(f => ({ ...f, category: categories[0].name }))
+    }
+  }, [categories])
+
   const handleCreate = async (e) => {
     e.preventDefault()
     setError('')
@@ -130,7 +132,7 @@ export default function Budgets() {
     try {
       await budgetsAPI.create({ ...form, limit_amount: parseFloat(form.limit_amount), month, year })
       setShowForm(false)
-      setForm({ category: 'Alimentação', limit_amount: '' })
+      setForm({ category: categories[0]?.name || 'Alimentação', limit_amount: '' })
       await load()
     } catch (err) {
       setError(err.response?.data?.detail || 'Erro ao salvar orçamento')
@@ -181,7 +183,9 @@ export default function Budgets() {
               onChange={(e) => setForm({ ...form, category: e.target.value })}
               className="input-field flex-1"
             >
-              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              {categories.map((c) => (
+                <option key={c.name} value={c.name}>{c.icon} {c.name}</option>
+              ))}
             </select>
             <input
               type="number"
@@ -219,6 +223,7 @@ export default function Budgets() {
               budget={b}
               spent={spentByCategory[b.category] || 0}
               onDeleteRequest={setDeleteId}
+              categoryMap={categoryMap}
             />
           ))}
         </div>
@@ -238,16 +243,10 @@ export default function Budgets() {
               Esta ação não pode ser desfeita.
             </p>
             <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteId(null)}
-                className="btn-secondary flex-1"
-              >
+              <button onClick={() => setDeleteId(null)} className="btn-secondary flex-1">
                 Cancelar
               </button>
-              <button
-                onClick={handleDelete}
-                className="btn-danger flex-1"
-              >
+              <button onClick={handleDelete} className="btn-danger flex-1">
                 Remover
               </button>
             </div>

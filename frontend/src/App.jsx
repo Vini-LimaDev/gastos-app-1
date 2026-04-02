@@ -9,6 +9,7 @@ import Budgets from './pages/Budgets'
 import Goals from './pages/Goals'
 import Recurring from './pages/Recurring'
 import Layout from './components/Layout'
+import Categories from './pages/Categories'
 
 function PrivateRoute({ children }) {
   const { user } = useAuth()
@@ -29,6 +30,7 @@ export default function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+            <Route path="/categories" element={<Categories />} />
             <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="transactions" element={<Transactions />} />

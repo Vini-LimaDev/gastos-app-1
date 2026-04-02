@@ -63,4 +63,11 @@ export const goalsAPI = {
   delete: (id) => api.delete(`/goals/${id}`),
 }
 
+export const categoriesAPI = {
+  list:   ()           => api.get('/categories/'),
+  create: (data)       => api.post('/categories/', data),
+  update: (id, data)   => api.put(`/categories/${id}`, data),
+  delete: (id)         => api.delete(`/categories/${id}`),
+}
+
 export default api

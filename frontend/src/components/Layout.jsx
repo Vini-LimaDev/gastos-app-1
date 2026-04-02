@@ -10,15 +10,16 @@ import {
   LogOut,
   Sun,
   Moon,
-  TrendingUp,
+  Tag,
 } from 'lucide-react'
 
 const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/transactions', label: 'Transações', icon: ArrowLeftRight },
-  { to: '/budgets', label: 'Orçamentos', icon: Wallet },
-  { to: '/goals', label: 'Metas', icon: Target },
-  { to: '/recurring', label: 'Recorrentes', icon: RefreshCw },
+  { to: '/dashboard',    label: 'Dashboard',   icon: LayoutDashboard },
+  { to: '/transactions', label: 'Transações',   icon: ArrowLeftRight },
+  { to: '/budgets',      label: 'Orçamentos',   icon: Wallet },
+  { to: '/goals',        label: 'Metas',        icon: Target },
+  { to: '/recurring',    label: 'Recorrentes',  icon: RefreshCw },
+  { to: '/categories',   label: 'Categorias',   icon: Tag },
 ]
 
 export default function Layout() {

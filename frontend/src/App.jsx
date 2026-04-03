@@ -30,13 +30,13 @@ export default function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-            <Route path="/categories" element={<Categories />} />
             <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="dashboard"    element={<Dashboard />} />
               <Route path="transactions" element={<Transactions />} />
-              <Route path="budgets" element={<Budgets />} />
-              <Route path="goals" element={<Goals />} />
-              <Route path="recurring" element={<Recurring />} />
+              <Route path="budgets"      element={<Budgets />} />
+              <Route path="goals"        element={<Goals />} />
+              <Route path="recurring"    element={<Recurring />} />
+              <Route path="categories"   element={<Categories />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

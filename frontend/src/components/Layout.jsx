@@ -11,11 +11,13 @@ import {
   Sun,
   Moon,
   Tag,
+  CreditCard,
 } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard',    label: 'Dashboard',   icon: LayoutDashboard },
   { to: '/transactions', label: 'Transações',   icon: ArrowLeftRight },
+  { to: '/cards',        label: 'Cartões',      icon: CreditCard },
   { to: '/budgets',      label: 'Orçamentos',   icon: Wallet },
   { to: '/goals',        label: 'Metas',        icon: Target },
   { to: '/recurring',    label: 'Recorrentes',  icon: RefreshCw },
@@ -54,7 +56,7 @@ export default function Layout() {
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
                     ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray:900 dark:hover:text-gray-200'
                 }`
               }
             >

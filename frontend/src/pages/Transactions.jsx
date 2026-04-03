@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, Filter, Trash2, Edit2, ChevronUp, ChevronDown, RefreshCw, ScanLine } from 'lucide-react'
-import { transactionsAPI } from '../api'
+import { transactionsAPI, cardsAPI } from '../api'
 import TransactionForm from '../components/TransactionForm'
 import InvoiceImport from '../components/InvoiceImport'
 
@@ -22,6 +22,7 @@ const fmt = (v) =>
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([])
+  const [cards, setCards]               = useState([])
   const [loading, setLoading]           = useState(true)
   const [showForm, setShowForm]         = useState(false)
   const [showImport, setShowImport]     = useState(false)
@@ -31,10 +32,17 @@ export default function Transactions() {
   const [sortField, setSortField]       = useState('date')
   const [sortDir, setSortDir]           = useState('desc')
 
+  // ── Selection state ──────────────────────────────────
+  const [selected, setSelected]           = useState(new Set())
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false)
+  const [bulkDeleting, setBulkDeleting]   = useState(false)
+
   const [filters, setFilters] = useState({
     search: '', category: '', type: '', start_date: '', end_date: '',
-    min_amount: '', max_amount: '',
+    min_amount: '', max_amount: '', card_id: '',
   })
+
+  const cardMap = Object.fromEntries(cards.map(c => [c.id, c]))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -48,6 +56,7 @@ export default function Transactions() {
       if (filters.max_amount) params.max_amount  = parseFloat(filters.max_amount)
       const res = await transactionsAPI.list(params)
       setTransactions(res.data || [])
+      setSelected(new Set())
     } finally {
       setLoading(false)
     }
@@ -55,11 +64,28 @@ export default function Transactions() {
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => {
+    cardsAPI.list().then(res => setCards(res.data || [])).catch(() => {})
+  }, [])
+
+  // ── Single delete ────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteId) return
     await transactionsAPI.delete(deleteId)
     setDeleteId(null)
     load()
+  }
+
+  // ── Bulk delete ──────────────────────────────────────
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true)
+    try {
+      await Promise.all([...selected].map(id => transactionsAPI.delete(id)))
+    } finally {
+      setBulkDeleting(false)
+      setShowBulkConfirm(false)
+      load()
+    }
   }
 
   const handleFormSuccess = () => {
@@ -74,16 +100,39 @@ export default function Transactions() {
   }
 
   const displayed = transactions
-    .filter(t => !filters.search ||
-      t.description.toLowerCase().includes(filters.search.toLowerCase()) ||
-      t.category.toLowerCase().includes(filters.search.toLowerCase())
-    )
+    .filter(t => {
+      const matchSearch = !filters.search ||
+        t.description.toLowerCase().includes(filters.search.toLowerCase()) ||
+        t.category.toLowerCase().includes(filters.search.toLowerCase())
+      const matchCard = !filters.card_id || t.card_id === filters.card_id
+      return matchSearch && matchCard
+    })
     .sort((a, b) => {
       let diff = 0
       if (sortField === 'date')   diff = new Date(a.date) - new Date(b.date)
       if (sortField === 'amount') diff = a.amount - b.amount
       return sortDir === 'asc' ? diff : -diff
     })
+
+  // ── Select helpers ───────────────────────────────────
+  const allSelected   = displayed.length > 0 && displayed.every(t => selected.has(t.id))
+  const someSelected  = displayed.some(t => selected.has(t.id))
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(displayed.map(t => t.id)))
+    }
+  }
+
+  const toggleOne = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   const totalIncome  = displayed.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const totalExpense = displayed.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
@@ -169,6 +218,17 @@ export default function Transactions() {
                 {CATEGORIES.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
+            {cards.length > 0 && (
+              <div>
+                <label className="label">Cartão</label>
+                <select value={filters.card_id} onChange={e => setFilters({ ...filters, card_id: e.target.value })} className="input-field">
+                  <option value="">Todos</option>
+                  {cards.map(c => (
+                    <option key={c.id} value={c.id}>{c.bank} •••{c.last_four}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="label">Data início</label>
               <input type="date" value={filters.start_date} onChange={e => setFilters({ ...filters, start_date: e.target.value })} className="input-field" />
@@ -187,7 +247,7 @@ export default function Transactions() {
             </div>
             <div className="col-span-2 md:col-span-3 flex justify-end">
               <button
-                onClick={() => setFilters({ search: '', category: '', type: '', start_date: '', end_date: '', min_amount: '', max_amount: '' })}
+                onClick={() => setFilters({ search: '', category: '', type: '', start_date: '', end_date: '', min_amount: '', max_amount: '', card_id: '' })}
                 className="btn-secondary text-sm"
               >
                 Limpar filtros
@@ -196,6 +256,29 @@ export default function Transactions() {
           </div>
         )}
       </div>
+
+      {/* Bulk action bar — aparece quando há selecionados */}
+      {selected.size > 0 && (
+        <div className="mb-3 flex items-center justify-between px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+          <span className="text-sm font-medium text-red-700 dark:text-red-400">
+            {selected.size} transaç{selected.size !== 1 ? 'ões selecionadas' : 'ão selecionada'}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelected(new Set())}
+              className="text-xs text-red-500 dark:text-red-400 hover:underline"
+            >
+              Limpar seleção
+            </button>
+            <button
+              onClick={() => setShowBulkConfirm(true)}
+              className="btn-danger flex items-center gap-1.5 text-sm py-1.5 px-3"
+            >
+              <Trash2 size={14} /> Excluir selecionadas
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (
@@ -212,6 +295,16 @@ export default function Transactions() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+                  {/* Checkbox selecionar tudo */}
+                  <th className="pl-4 pr-2 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      ref={el => { if (el) el.indeterminate = someSelected && !allSelected }}
+                      onChange={toggleAll}
+                      className="w-4 h-4 rounded accent-primary-600 cursor-pointer"
+                    />
+                  </th>
                   <th
                     className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none"
                     onClick={() => toggleSort('date')}
@@ -220,6 +313,7 @@ export default function Transactions() {
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Descrição</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Categoria</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Cartão</th>
                   <th
                     className="text-right px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none"
                     onClick={() => toggleSort('amount')}
@@ -230,57 +324,84 @@ export default function Transactions() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                {displayed.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{t.description}</span>
-                        {t.is_recurring && (
-                          <span title="Recorrente" className="text-blue-400 dark:text-blue-500">
-                            <RefreshCw size={12} />
-                          </span>
+                {displayed.map((t) => {
+                  const card = t.card_id ? cardMap[t.card_id] : null
+                  const isChecked = selected.has(t.id)
+                  return (
+                    <tr
+                      key={t.id}
+                      className={`transition-colors ${isChecked ? 'bg-red-50/60 dark:bg-red-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
+                    >
+                      <td className="pl-4 pr-2 py-3 w-8">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleOne(t.id)}
+                          className="w-4 h-4 rounded accent-primary-600 cursor-pointer"
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                        {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 dark:text-gray-100">{t.description}</span>
+                          {t.is_recurring && (
+                            <span title="Recorrente" className="text-blue-400 dark:text-blue-500">
+                              <RefreshCw size={12} />
+                            </span>
+                          )}
+                        </div>
+                        {t.notes && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t.notes}</p>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${CATEGORY_COLORS[t.category] || 'bg-gray-100 text-gray-700'}`}>
+                          {t.category}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {card ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: card.color }} />
+                            <span className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                              {card.bank} •••{card.last_four}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
                         )}
-                      </div>
-                      {t.notes && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t.notes}</p>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${CATEGORY_COLORS[t.category] || 'bg-gray-100 text-gray-700'}`}>
-                        {t.category}
-                      </span>
-                    </td>
-                    <td className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${
-                      t.type === 'income' ? 'text-primary-600 dark:text-primary-400' : 'text-red-500 dark:text-red-400'
-                    }`}>
-                      {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => { setEditTx(t); setShowForm(true) }}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          onClick={() => setDeleteId(t.id)}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${
+                        t.type === 'income' ? 'text-primary-600 dark:text-primary-400' : 'text-red-500 dark:text-red-400'
+                      }`}>
+                        {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => { setEditTx(t); setShowForm(true) }}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button
+                            onClick={() => setDeleteId(t.id)}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* Delete confirmation */}
+      {/* Single delete confirmation */}
       {deleteId && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-6 w-full max-w-sm">
@@ -289,6 +410,26 @@ export default function Transactions() {
             <div className="flex gap-3">
               <button onClick={() => setDeleteId(null)} className="btn-secondary flex-1">Cancelar</button>
               <button onClick={handleDelete} className="btn-danger flex-1">Remover</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk delete confirmation */}
+      {showBulkConfirm && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Remover {selected.size} transaç{selected.size !== 1 ? 'ões' : 'ão'}?
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowBulkConfirm(false)} className="btn-secondary flex-1">Cancelar</button>
+              <button onClick={handleBulkDelete} disabled={bulkDeleting} className="btn-danger flex-1">
+                {bulkDeleting ? 'Removendo...' : 'Remover tudo'}
+              </button>
             </div>
           </div>
         </div>

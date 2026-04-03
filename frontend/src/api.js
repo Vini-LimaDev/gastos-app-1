@@ -63,11 +63,20 @@ export const goalsAPI = {
   delete: (id) => api.delete(`/goals/${id}`),
 }
 
+// ── Categories ────────────────────────────────────────
 export const categoriesAPI = {
   list:   ()           => api.get('/categories/'),
   create: (data)       => api.post('/categories/', data),
   update: (id, data)   => api.put(`/categories/${id}`, data),
   delete: (id)         => api.delete(`/categories/${id}`),
+}
+
+// ── Cards ─────────────────────────────────────────────
+export const cardsAPI = {
+  list: () => api.get('/cards/'),
+  create: (data) => api.post('/cards/', data),
+  update: (id, data) => api.put(`/cards/${id}`, data),
+  delete: (id) => api.delete(`/cards/${id}`),
 }
 
 export default api

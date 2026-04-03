@@ -10,6 +10,7 @@ import Goals from './pages/Goals'
 import Recurring from './pages/Recurring'
 import Layout from './components/Layout'
 import Categories from './pages/Categories'
+import Cards from './pages/Cards'
 
 function PrivateRoute({ children }) {
   const { user } = useAuth()
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
               <Route path="dashboard"    element={<Dashboard />} />
               <Route path="transactions" element={<Transactions />} />
+              <Route path="cards"        element={<Cards />} />
               <Route path="budgets"      element={<Budgets />} />
               <Route path="goals"        element={<Goals />} />
               <Route path="recurring"    element={<Recurring />} />

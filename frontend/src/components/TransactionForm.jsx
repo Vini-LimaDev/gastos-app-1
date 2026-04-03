@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X, RefreshCw, CreditCard } from 'lucide-react'
-import { transactionsAPI } from '../api'
+import { transactionsAPI, cardsAPI } from '../api'
 import DatePicker from './DatePicker'
 import { useCategories } from '../hooks/useCategories'
 
@@ -24,6 +24,7 @@ const defaultForm = {
   installment_input_mode: 'total',
   installment_total_value: '',
   installment_per_value: '',
+  card_id: '',
 }
 
 const fmt = (v) =>
@@ -33,9 +34,14 @@ export default function TransactionForm({ transaction, onSuccess, onClose }) {
   const [form, setForm]       = useState(defaultForm)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
+  const [cards, setCards]     = useState([])
 
   const { categories } = useCategories()
   const isEditing = !!transaction
+
+  useEffect(() => {
+    cardsAPI.list().then(res => setCards(res.data || [])).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (transaction) {
@@ -49,6 +55,7 @@ export default function TransactionForm({ transaction, onSuccess, onClose }) {
         notes:                transaction.notes || '',
         is_recurring:         transaction.is_recurring || false,
         recurrence_interval:  transaction.recurrence_interval || 'monthly',
+        card_id:              transaction.card_id || '',
       })
     }
   }, [transaction])
@@ -117,6 +124,7 @@ export default function TransactionForm({ transaction, onSuccess, onClose }) {
           category: form.category, date: form.date, notes: form.notes || null,
           is_recurring: false, recurrence_interval: null,
           installment_total: parseInt(form.installment_total),
+          card_id: form.card_id || null,
         })
       } else {
         const payload = {
@@ -124,6 +132,7 @@ export default function TransactionForm({ transaction, onSuccess, onClose }) {
           type: form.type, category: form.category, date: form.date,
           notes: form.notes || null, is_recurring: form.is_recurring,
           recurrence_interval: form.is_recurring ? form.recurrence_interval : null,
+          card_id: form.card_id || null,
         }
         if (isEditing) { await transactionsAPI.update(transaction.id, payload) }
         else { await transactionsAPI.create(payload) }
@@ -140,6 +149,7 @@ export default function TransactionForm({ transaction, onSuccess, onClose }) {
 
   const installmentAmount = form.is_installment ? getInstallmentAmount() : null
   const installmentN      = parseInt(form.installment_total) || 0
+  const selectedCard      = cards.find(c => c.id === form.card_id)
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -274,6 +284,46 @@ export default function TransactionForm({ transaction, onSuccess, onClose }) {
               ))}
             </select>
           </div>
+
+          {/* Cartão */}
+          {cards.length > 0 && (
+            <div>
+              <label className="label">Cartão (opcional)</label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, card_id: '' }))}
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                    !form.card_id
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300'
+                  }`}
+                >
+                  Nenhum
+                </button>
+                {cards.map(card => (
+                  <button
+                    key={card.id}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, card_id: card.id }))}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                      form.card_id === card.id
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: card.color }} />
+                    {card.bank} •••{card.last_four}
+                  </button>
+                ))}
+              </div>
+              {selectedCard && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+                  {selectedCard.name} — {selectedCard.card_type === 'credit' ? 'Crédito' : 'Débito'}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Recorrência */}
           {!form.is_installment && (

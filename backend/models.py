@@ -3,7 +3,6 @@ from typing import Optional, Literal
 from datetime import date as date_, datetime
 
 
-
 # ── Auth ──────────────────────────────────────────────
 class UserRegister(BaseModel):
     email: EmailStr
@@ -40,6 +39,7 @@ class TransactionCreate(BaseModel):
     is_recurring: bool = False
     recurrence_interval: Optional[RecurrenceInterval] = None
     installment_total: Optional[int] = Field(None, ge=2, le=360)
+    card_id: Optional[str] = None
 
 
 class TransactionUpdate(BaseModel):
@@ -49,10 +49,11 @@ class TransactionUpdate(BaseModel):
     amount: Optional[float] = Field(None, gt=0)
     type: Optional[TransactionType] = None
     category: Optional[CategoryType] = None
-    date: Optional[date_] = None   
+    date: Optional[date_] = None
     notes: Optional[str] = None
     is_recurring: Optional[bool] = None
     recurrence_interval: Optional[RecurrenceInterval] = None
+    card_id: Optional[str] = None
 
 
 class TransactionResponse(BaseModel):
@@ -66,6 +67,38 @@ class TransactionResponse(BaseModel):
     notes: Optional[str]
     is_recurring: bool
     recurrence_interval: Optional[str]
+    card_id: Optional[str]
+    created_at: str
+
+
+# ── Cards ─────────────────────────────────────────────
+CardTypeEnum = Literal["credit", "debit"]
+
+
+class CardCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    bank: str = Field(min_length=1, max_length=100)
+    last_four: str = Field(min_length=4, max_length=4, pattern=r'^\d{4}$')
+    color: str = Field(default="#6366f1")
+    card_type: CardTypeEnum = "credit"
+
+
+class CardUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    bank: Optional[str] = Field(None, min_length=1, max_length=100)
+    last_four: Optional[str] = Field(None, min_length=4, max_length=4, pattern=r'^\d{4}$')
+    color: Optional[str] = None
+    card_type: Optional[CardTypeEnum] = None
+
+
+class CardResponse(BaseModel):
+    id: str
+    user_id: str
+    name: str
+    bank: str
+    last_four: str
+    color: str
+    card_type: str
     created_at: str
 
 

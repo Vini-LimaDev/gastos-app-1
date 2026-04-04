@@ -55,7 +55,7 @@ async def update_goal(
         .select("id")\
         .eq("id", goal_id)\
         .eq("user_id", current_user["id"])\
-        .single()\
+        .maybe_single()\
         .execute()
 
     if not existing.data:
@@ -83,7 +83,7 @@ async def delete_goal(
         .select("id")\
         .eq("id", goal_id)\
         .eq("user_id", current_user["id"])\
-        .single()\
+        .maybe_single()\
         .execute()
 
     if not existing.data:

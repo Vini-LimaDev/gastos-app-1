@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from auth import get_current_user
-from database import supabase
+from database import supabase_admin as supabase
 from pydantic import BaseModel, Field
 from typing import Optional
 

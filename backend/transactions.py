@@ -99,6 +99,7 @@ async def create_transaction(
                 "installment_group_id": None,
                 "installment_number": None,
                 "installment_total": None,
+                "card_id": data.card_id,
             }
             result = supabase.table("transactions").insert(payload).execute()
             if not result.data:

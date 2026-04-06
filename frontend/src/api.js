@@ -31,6 +31,10 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   logout: () => api.post('/auth/logout'),
   me: () => api.get('/auth/me'),
+  confirmEmail: (tokenHash, type) =>
+    api.get('/auth/confirm', { params: { token_hash: tokenHash, type } }),
+  confirmToken: (accessToken) =>                                    // ← ADICIONA
+    api.post('/auth/confirm-token', { access_token: accessToken }),
 }
 
 // ── Transactions ──────────────────────────────────────

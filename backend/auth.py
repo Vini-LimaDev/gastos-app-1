@@ -113,7 +113,10 @@ async def login(data: UserLogin):
 
         user_id = result.user.id
         profile = supabase_admin.table("profiles").select("*").eq("id", user_id).maybe_single().execute()
-        name = profile.data.get("name", "") if profile.data else result.user.email
+        
+        # maybe_single() retorna None quando não acha — acessa .data com segurança
+        profile_data = profile.data if profile else None
+        name = profile_data.get("name", "") if profile_data else result.user.email
 
         return {
             "access_token": result.session.access_token,
@@ -122,7 +125,8 @@ async def login(data: UserLogin):
         }
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        print(f"ERRO LOGINNNN: {type(e).__name__}: {e}")
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
 

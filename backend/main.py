@@ -9,6 +9,7 @@ import transactions
 import budgets
 import goals
 import cards
+import whatsapp
 import recurring
 from categories import router as categories_router
 from recurring_job import process_recurring_transactions
@@ -69,6 +70,7 @@ app.include_router(goals.router, prefix="/api")
 app.include_router(cards.router, prefix="/api")
 app.include_router(recurring.router, prefix="/api")
 app.include_router(categories_router, prefix="/api")
+app.include_router(whatsapp.router, prefix="/api")  
 
 # ── Endpoint manual ────────────────────────────────────────────────────────────
 

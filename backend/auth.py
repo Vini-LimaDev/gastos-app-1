@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from database import supabase
+from database import supabase_admin as supabase
 from models import UserRegister, UserLogin, Token
+from pydantic import BaseModel
+from typing import Optional
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
@@ -96,3 +98,44 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     if profile.data:
         return profile.data
     return current_user
+
+class PhoneUpdate(BaseModel):
+    phone: Optional[str] = None
+
+@router.put("/phone")
+async def update_phone(data: PhoneUpdate, current_user: dict = Depends(get_current_user)):
+    """
+    Vincula ou remove o número de WhatsApp do perfil do usuário.
+    O número é usado pelo webhook para identificar quem mandou a mensagem.
+    """
+ 
+    phone = data.phone
+ 
+    # Validação básica se um número foi fornecido
+    if phone is not None:
+        import re
+        if not re.match(r"^\+\d{10,15}$", phone):
+            raise HTTPException(
+                status_code=422,
+                detail="Número inválido. Use formato internacional: +5511999999999"
+            )
+ 
+        # Verificar se o número já está vinculado a outra conta
+        existing = supabase.table("profiles") \
+            .select("id") \
+            .eq("phone", phone) \
+            .neq("id", current_user["id"]) \
+            .execute()
+ 
+        if existing.data:
+            raise HTTPException(
+                status_code=400,
+                detail="Este número já está vinculado a outra conta."
+            )
+ 
+    supabase.table("profiles") \
+        .update({"phone": phone}) \
+        .eq("id", current_user["id"]) \
+        .execute()
+ 
+    return {"message": "Número atualizado com sucesso", "phone": phone}

@@ -1,14 +1,8 @@
 import { useState, useEffect } from 'react'
-import { X, RefreshCw, CreditCard } from 'lucide-react'
+import { X, CreditCard } from 'lucide-react'
 import { transactionsAPI, cardsAPI } from '../api'
 import DatePicker from './DatePicker'
 import { useCategories } from '../hooks/useCategories'
-
-const RECURRENCE_OPTIONS = [
-  { value: 'monthly', label: 'Mensal' },
-  { value: 'weekly',  label: 'Semanal' },
-  { value: 'yearly',  label: 'Anual' },
-]
 
 const defaultForm = {
   description: '',
@@ -17,8 +11,6 @@ const defaultForm = {
   category: 'Alimentação',
   date: new Date().toISOString().split('T')[0],
   notes: '',
-  is_recurring: false,
-  recurrence_interval: 'monthly',
   is_installment: false,
   installment_total: '2',
   installment_input_mode: 'total',
@@ -47,15 +39,13 @@ export default function TransactionForm({ transaction, onSuccess, onClose }) {
     if (transaction) {
       setForm({
         ...defaultForm,
-        description:          transaction.description.replace(/ \(\d+\/\d+\)$/, ''),
-        amount:               String(transaction.amount),
-        type:                 transaction.type,
-        category:             transaction.category,
-        date:                 transaction.date,
-        notes:                transaction.notes || '',
-        is_recurring:         transaction.is_recurring || false,
-        recurrence_interval:  transaction.recurrence_interval || 'monthly',
-        card_id:              transaction.card_id || '',
+        description: transaction.description.replace(/ \(\d+\/\d+\)$/, ''),
+        amount:      String(transaction.amount),
+        type:        transaction.type,
+        category:    transaction.category,
+        date:        transaction.date,
+        notes:       transaction.notes || '',
+        card_id:     transaction.card_id || '',
       })
     }
   }, [transaction])
@@ -122,7 +112,6 @@ export default function TransactionForm({ transaction, onSuccess, onClose }) {
         await transactionsAPI.create({
           description: form.description, amount, type: form.type,
           category: form.category, date: form.date, notes: form.notes || null,
-          is_recurring: false, recurrence_interval: null,
           installment_total: parseInt(form.installment_total),
           card_id: form.card_id || null,
         })
@@ -130,8 +119,7 @@ export default function TransactionForm({ transaction, onSuccess, onClose }) {
         const payload = {
           description: form.description, amount: parseFloat(form.amount),
           type: form.type, category: form.category, date: form.date,
-          notes: form.notes || null, is_recurring: form.is_recurring,
-          recurrence_interval: form.is_recurring ? form.recurrence_interval : null,
+          notes: form.notes || null,
           card_id: form.card_id || null,
         }
         if (isEditing) { await transactionsAPI.update(transaction.id, payload) }
@@ -321,34 +309,6 @@ export default function TransactionForm({ transaction, onSuccess, onClose }) {
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
                   {selectedCard.name} — {selectedCard.card_type === 'credit' ? 'Crédito' : 'Débito'}
                 </p>
-              )}
-            </div>
-          )}
-
-          {/* Recorrência */}
-          {!form.is_installment && (
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-3 space-y-3">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" name="is_recurring" checked={form.is_recurring}
-                  onChange={handleChange} className="w-4 h-4 rounded accent-primary-600" />
-                <div className="flex items-center gap-2">
-                  <RefreshCw size={15} className="text-gray-500 dark:text-gray-400" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Transação recorrente</span>
-                </div>
-              </label>
-              {form.is_recurring && (
-                <div>
-                  <label className="label">Frequência</label>
-                  <select name="recurrence_interval" value={form.recurrence_interval}
-                    onChange={handleChange} className="input-field">
-                    {RECURRENCE_OPTIONS.map(({ value, label }) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    Esta transação será lançada automaticamente
-                  </p>
-                </div>
               )}
             </div>
           )}

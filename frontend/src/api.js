@@ -47,6 +47,15 @@ export const transactionsAPI = {
     api.delete(`/transactions/installment-group/${groupId}`),
 }
 
+// ── Recurring Templates ───────────────────────────────
+export const recurringAPI = {
+  list: () => api.get('/recurring-templates/'),
+  create: (data) => api.post('/recurring-templates/', data),
+  update: (id, data) => api.put(`/recurring-templates/${id}`, data),
+  delete: (id) => api.delete(`/recurring-templates/${id}`),
+  processNow: () => api.post('/recurring/process'),
+}
+
 // ── Budgets ───────────────────────────────────────────
 export const budgetsAPI = {
   list: (params) => api.get('/budgets/', { params }),

@@ -1,33 +1,84 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { TrendingUp } from 'lucide-react'
+import { Mail, CheckCircle } from 'lucide-react'
 
 export default function Register() {
   const { register, loading } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [error, setError] = useState('')
+  const [pendingEmail, setPendingEmail] = useState(null)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     const result = await register(form.name, form.email, form.password)
-    if (result.success) {
+    if (!result.success) {
+      setError(result.error)
+    } else if (result.confirmed) {
       navigate('/dashboard')
     } else {
-      setError(result.error)
+      setPendingEmail(result.email)
     }
   }
 
+  // ── Tela de aguardar confirmação ──────────────────────
+  if (pendingEmail) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <img
+              src="/gemini-svg.svg"
+              alt="Planilha de Gastos"
+              className="w-100% h-100% object-contain mx-auto mb-3"
+            />
+          </div>
+
+          <div className="card text-center">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
+                <Mail className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+              </div>
+            </div>
+
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Verifique seu e-mail
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+              Enviamos um link de confirmação para:
+            </p>
+            <p className="text-sm font-semibold text-primary-600 dark:text-primary-400 mb-6">
+              {pendingEmail}
+            </p>
+
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-left mb-6">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                  Clique no botão do e-mail para ativar sua conta. Verifique também a caixa de spam.
+                </p>
+              </div>
+            </div>
+
+            <Link to="/login" className="btn-secondary w-full block text-center">
+              Voltar ao login
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Formulário de cadastro ────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="text-center mb-8">
-          <img 
-            src="/gemini-svg.svg" 
-            alt="Planilha de Gastos" 
+          <img
+            src="/gemini-svg.svg"
+            alt="Planilha de Gastos"
             className="w-100% h-100% object-contain mx-auto mb-3"
           />
         </div>

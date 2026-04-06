@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import ConfirmEmail from './pages/ConfirmEmail'  
 import Dashboard from './pages/Dashboard'
 import Transactions from './pages/Transactions'
 import Budgets from './pages/Budgets'
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+            <Route path="/auth/confirm" element={<ConfirmEmail />} /> 
             <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
               <Route path="dashboard"    element={<Dashboard />} />
               <Route path="transactions" element={<Transactions />} />

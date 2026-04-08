@@ -30,14 +30,12 @@ export function AuthProvider({ children }) {
     setLoading(true)
     try {
       const res = await authAPI.register({ name, email, password })
-      // Se já veio com token (confirm email desativado), loga direto
       if (res.data.confirmed && res.data.access_token) {
         localStorage.setItem('token', res.data.access_token)
         localStorage.setItem('user', JSON.stringify(res.data.user))
         setUser(res.data.user)
         return { success: true, confirmed: true }
       }
-      // Fluxo normal: aguardar confirmação de email
       return { success: true, confirmed: false, email: res.data.email }
     } catch (err) {
       return { success: false, error: err.response?.data?.detail || 'Erro ao criar conta' }
@@ -70,7 +68,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, confirmEmail, logout }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, register, confirmEmail, logout }}>
       {children}
     </AuthContext.Provider>
   )

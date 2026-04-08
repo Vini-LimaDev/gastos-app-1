@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import Login from './pages/Login'
 import Register from './pages/Register'
-import ConfirmEmail from './pages/ConfirmEmail'  
+import ConfirmEmail from './pages/ConfirmEmail'
 import Dashboard from './pages/Dashboard'
 import Transactions from './pages/Transactions'
 import Budgets from './pages/Budgets'
@@ -12,6 +12,7 @@ import Recurring from './pages/Recurring'
 import Layout from './components/Layout'
 import Categories from './pages/Categories'
 import Cards from './pages/Cards'
+import Profile from './pages/Profile'
 
 function PrivateRoute({ children }) {
   const { user } = useAuth()
@@ -32,7 +33,7 @@ export default function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-            <Route path="/auth/confirm" element={<ConfirmEmail />} /> 
+            <Route path="/auth/confirm" element={<ConfirmEmail />} />
             <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
               <Route path="dashboard"    element={<Dashboard />} />
               <Route path="transactions" element={<Transactions />} />
@@ -41,6 +42,7 @@ export default function App() {
               <Route path="goals"        element={<Goals />} />
               <Route path="recurring"    element={<Recurring />} />
               <Route path="categories"   element={<Categories />} />
+              <Route path="profile"      element={<Profile />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

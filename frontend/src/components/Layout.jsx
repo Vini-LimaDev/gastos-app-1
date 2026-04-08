@@ -12,6 +12,7 @@ import {
   Moon,
   Tag,
   CreditCard,
+  UserCircle,
 } from 'lucide-react'
 
 const navItems = [
@@ -39,8 +40,8 @@ export default function Layout() {
         {/* Logo */}
         <div className="p-6 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-2">
-            <img 
-              src="/gemini-svg.svg" 
+            <img
+              src="/gemini-svg.svg"
               className="w-100% h-20 object-contain"
             />
           </div>
@@ -56,7 +57,7 @@ export default function Layout() {
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
                     ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray:900 dark:hover:text-gray-200'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200'
                 }`
               }
             >
@@ -79,23 +80,46 @@ export default function Layout() {
             {isDark ? 'Modo Claro' : 'Modo Escuro'}
           </button>
 
-          {/* User info */}
-          <div className="flex items-center gap-3 px-3 py-2">
+          {/* User info — clicável para ir ao perfil */}
+          <NavLink
+            to="/profile"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-xl transition-all group ${
+                isActive
+                  ? 'bg-primary-50 dark:bg-primary-900/30'
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`
+            }
+          >
             <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center flex-shrink-0">
-              <span className="text-xs font-bold text-primary-700 dark:text-primary-400">{initials}</span>
+              <span className="text-xs font-bold text-primary-700 dark:text-primary-400">
+                {initials}
+              </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user?.name}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                {user?.name}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                {user?.email}
+              </p>
             </div>
-            <button
-              onClick={logout}
-              title="Sair"
-              className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors flex-shrink-0"
-            >
-              <LogOut size={16} />
-            </button>
-          </div>
+            <UserCircle
+              size={15}
+              className="text-gray-300 dark:text-gray-600 group-hover:text-primary-500 dark:group-hover:text-primary-400 transition-colors flex-shrink-0"
+            />
+          </NavLink>
+
+          {/* Logout */}
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
+                       text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20
+                       hover:text-red-600 dark:hover:text-red-400 transition-all"
+          >
+            <LogOut size={18} />
+            Sair
+          </button>
         </div>
       </aside>
 

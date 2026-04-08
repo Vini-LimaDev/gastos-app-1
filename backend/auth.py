@@ -113,8 +113,7 @@ async def login(data: UserLogin):
 
         user_id = result.user.id
         profile = supabase_admin.table("profiles").select("*").eq("id", user_id).maybe_single().execute()
-        
-        # maybe_single() retorna None quando não acha — acessa .data com segurança
+
         profile_data = profile.data if profile else None
         name = profile_data.get("name", "") if profile_data else result.user.email
 
@@ -145,6 +144,30 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     if profile.data:
         return profile.data
     return current_user
+
+
+# ── Atualizar perfil ──────────────────────────────────
+class ProfileUpdate(PydanticBase):
+    name: str
+
+
+@router.put("/profile")
+async def update_profile(data: ProfileUpdate, current_user: dict = Depends(get_current_user)):
+    name = data.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="O nome não pode ser vazio")
+    if len(name) > 100:
+        raise HTTPException(status_code=400, detail="Nome muito longo (máx. 100 caracteres)")
+
+    result = supabase_admin.table("profiles") \
+        .update({"name": name}) \
+        .eq("id", current_user["id"]) \
+        .execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Perfil não encontrado")
+
+    return {"id": current_user["id"], "email": current_user["email"], "name": name}
 
 
 # ── Formato legado: access_token vindo no hash da URL ──

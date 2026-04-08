@@ -7,25 +7,29 @@ import {
 import {
   TrendingUp, TrendingDown, DollarSign, Hash,
   ArrowUpRight, ArrowDownRight, ChevronRight, AlertTriangle,
+  CreditCard, ChevronDown, Calendar,
 } from 'lucide-react'
-import { transactionsAPI, budgetsAPI } from '../api'
+import { transactionsAPI, budgetsAPI, cardsAPI } from '../api'
 
 const MONTH_NAMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
 const CATEGORY_COLORS = {
   Alimentação: '#f97316',
-  Transporte: '#3b82f6',
-  Moradia: '#a855f7',
-  Saúde: '#ef4444',
-  Lazer: '#eab308',
-  Educação: '#6366f1',
-  Vestuário: '#ec4899',
-  Outros: '#6b7280',
+  Transporte:  '#3b82f6',
+  Moradia:     '#a855f7',
+  Saúde:       '#ef4444',
+  Lazer:       '#eab308',
+  Educação:    '#6366f1',
+  Vestuário:   '#ec4899',
+  Outros:      '#6b7280',
 }
+
+const CATEGORY_COLORS_HEX = CATEGORY_COLORS
 
 const fmt = (v) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
+// ── Stat Card ─────────────────────────────────────────
 function StatCard({ label, value, icon: Icon, color, sub }) {
   return (
     <div className="card flex items-center gap-4">
@@ -41,18 +45,20 @@ function StatCard({ label, value, icon: Icon, color, sub }) {
   )
 }
 
+// ── Budget Mini Card ──────────────────────────────────
 function BudgetMiniCard({ budget, spent }) {
   const pct = budget.limit_amount > 0 ? Math.min((spent / budget.limit_amount) * 100, 100) : 0
   const isOver = spent > budget.limit_amount
   const isWarning = !isOver && pct >= 80
-
   const barColor = isOver ? 'bg-red-500' : isWarning ? 'bg-yellow-500' : 'bg-primary-500 dark:bg-primary-400'
 
   return (
     <div>
       <div className="flex justify-between items-center mb-1">
         <span className="text-sm text-gray-700 dark:text-gray-300 font-medium flex items-center gap-1.5">
-          {(isOver || isWarning) && <AlertTriangle size={12} className={isOver ? 'text-red-500' : 'text-yellow-500'} />}
+          {(isOver || isWarning) && (
+            <AlertTriangle size={12} className={isOver ? 'text-red-500' : 'text-yellow-500'} />
+          )}
           {budget.category}
         </span>
         <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -66,30 +72,231 @@ function BudgetMiniCard({ budget, spent }) {
   )
 }
 
+// ── Cards Dashboard (embedded) ────────────────────────
+function CardVisual({ card, small = false }) {
+  const size = small ? 'w-16 h-10 text-[9px]' : 'w-full h-40 text-sm'
+  return (
+    <div
+      className={`${size} rounded-xl flex flex-col justify-between p-3 text-white font-medium shadow-lg select-none`}
+      style={{ background: `linear-gradient(135deg, ${card.color}dd, ${card.color}88)` }}
+    >
+      {!small && (
+        <div className="flex justify-between items-start">
+          <span className="font-bold text-base opacity-90">{card.name}</span>
+          <CreditCard size={20} className="opacity-70" />
+        </div>
+      )}
+      <div className={`flex ${small ? 'items-center gap-1' : 'flex-col gap-1'}`}>
+        {!small && (
+          <span className="tracking-widest text-lg opacity-80">
+            •••• •••• •••• {card.last_four}
+          </span>
+        )}
+        <span className={`opacity-75 ${small ? 'text-[8px]' : 'text-xs'}`}>
+          {small ? card.last_four : card.bank}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function CardsDashboardSection({ cards, month, year }) {
+  const [txs, setTxs]         = useState([])
+  const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+    const daysInMonth = new Date(year, month, 0).getDate()
+    transactionsAPI.list({
+      start_date: `${year}-${String(month).padStart(2,'0')}-01`,
+      end_date:   `${year}-${String(month).padStart(2,'0')}-${daysInMonth}`,
+      type: 'expense',
+    }).then(res => setTxs(res.data || []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [month, year])
+
+  const statsPerCard = cards.map(card => {
+    const cardTxs    = txs.filter(t => t.card_id === card.id)
+    const total      = cardTxs.reduce((s, t) => s + t.amount, 0)
+    const byCategory = {}
+    cardTxs.forEach(t => {
+      byCategory[t.category] = (byCategory[t.category] || 0) + t.amount
+    })
+    return { card, total, byCategory, count: cardTxs.length }
+  }).filter(s => s.total > 0 || cards.length <= 3)
+
+  const barData  = statsPerCard.map(s => ({
+    name:  `${s.card.bank} •••${s.card.last_four}`,
+    total: s.total,
+    color: s.card.color,
+  }))
+  const totalAll = statsPerCard.reduce((s, c) => s + c.total, 0)
+
+  if (cards.length === 0) return null
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="section-title">Gastos por Cartão</h2>
+        <Link to="/cards" className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1">
+          Gerenciar <ChevronRight size={12} />
+        </Link>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : totalAll === 0 ? (
+        <div className="card text-center py-6 text-gray-400 dark:text-gray-600 text-sm">
+          Nenhum gasto vinculado a cartões em {MONTH_NAMES[month - 1]}/{year}
+        </div>
+      ) : (
+        <>
+          {/* Summary cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {statsPerCard.map(({ card, total, count }) => (
+              <div
+                key={card.id}
+                className="card py-4 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => setExpanded(expanded === card.id ? null : card.id)}
+              >
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${card.color}22`, border: `2px solid ${card.color}44` }}
+                >
+                  <CreditCard size={18} style={{ color: card.color }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {card.bank} •••{card.last_four}
+                  </p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{fmt(total)}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    {count} transaç{count !== 1 ? 'ões' : 'ão'}
+                  </p>
+                </div>
+                {totalAll > 0 && (
+                  <div className="text-right flex-shrink-0">
+                    <span
+                      className="text-xs font-semibold px-2 py-1 rounded-full"
+                      style={{ background: `${card.color}22`, color: card.color }}
+                    >
+                      {((total / totalAll) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Expanded category breakdown */}
+          {statsPerCard.map(({ card, total, byCategory }) =>
+            expanded === card.id && Object.keys(byCategory).length > 0 ? (
+              <div key={`exp-${card.id}`} className="card">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="w-3 h-3 rounded-full" style={{ background: card.color }} />
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                    {card.name} — Gastos por Categoria em {MONTH_NAMES[month - 1]}
+                  </h3>
+                </div>
+                <div className="space-y-2.5">
+                  {Object.entries(byCategory)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([cat, val]) => {
+                      const pct   = total > 0 ? (val / total) * 100 : 0
+                      const color = CATEGORY_COLORS_HEX[cat] || '#6b7280'
+                      return (
+                        <div key={cat}>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{cat}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 dark:text-gray-400">{pct.toFixed(0)}%</span>
+                              <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">{fmt(val)}</span>
+                            </div>
+                          </div>
+                          <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{ width: `${pct}%`, background: color }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+            ) : null
+          )}
+
+          {/* Bar chart — only if 2+ cards have spending */}
+          {barData.filter(b => b.total > 0).length >= 2 && (
+            <div className="card">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-4">
+                Comparativo de Gastos — {MONTH_NAMES[month - 1]}/{year}
+              </h3>
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={barData} barSize={32} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
+                  />
+                  <Tooltip
+                    formatter={v => fmt(v)}
+                    contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                    cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                  />
+                  <Bar dataKey="total" radius={[6, 6, 0, 0]} name="Gasto">
+                    {barData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Main Dashboard ────────────────────────────────────
 export default function Dashboard() {
   const now = new Date()
-  const [month, setMonth] = useState(now.getMonth() + 1)
-  const [year, setYear] = useState(now.getFullYear())
-  const [monthly, setMonthly] = useState(null)
-  const [yearly, setYearly] = useState(null)
-  const [recent, setRecent] = useState([])
-  const [budgets, setBudgets] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [month, setMonth]   = useState(now.getMonth() + 1)
+  const [year, setYear]     = useState(now.getFullYear())
+  const [monthly, setMonthly]   = useState(null)
+  const [yearly, setYearly]     = useState(null)
+  const [recent, setRecent]     = useState([])
+  const [budgets, setBudgets]   = useState([])
+  const [cards, setCards]       = useState([])
+  const [loading, setLoading]   = useState(true)
 
   const load = async () => {
     setLoading(true)
     try {
-      const [monthRes, yearRes, recentRes, budgetsRes] = await Promise.all([
+      const [monthRes, yearRes, recentRes, budgetsRes, cardsRes] = await Promise.all([
         transactionsAPI.monthlySummary(year, month),
         transactionsAPI.yearlySummary(year),
         transactionsAPI.list({ start_date: `${year}-01-01` }),
         budgetsAPI.list({ month, year }),
+        cardsAPI.list(),
       ])
       setMonthly(monthRes.data)
       setYearly(yearRes.data)
-      const sorted = (recentRes.data || []).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5)
+      const sorted = (recentRes.data || [])
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 5)
       setRecent(sorted)
       setBudgets(budgetsRes.data || [])
+      setCards(cardsRes.data || [])
     } catch {
       // silently fail
     } finally {
@@ -102,7 +309,7 @@ export default function Dashboard() {
   const yearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1]
 
   const chartData = yearly?.monthly?.map((m) => ({
-    name: MONTH_NAMES[m.month - 1],
+    name:     MONTH_NAMES[m.month - 1],
     Receitas: m.income,
     Despesas: m.expense,
   })) || []
@@ -113,7 +320,7 @@ export default function Dashboard() {
 
   const budgetsWithSpent = budgets.map((b) => ({
     budget: b,
-    spent: monthly?.by_category?.[b.category] || 0,
+    spent:  monthly?.by_category?.[b.category] || 0,
   })).sort((a, b) => {
     const pctA = a.budget.limit_amount > 0 ? (a.spent / a.budget.limit_amount) : 0
     const pctB = b.budget.limit_amount > 0 ? (b.spent / b.budget.limit_amount) : 0
@@ -154,7 +361,8 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Stat cards */}
+
+          {/* ── Stat cards ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               label="Saldo do Mês"
@@ -182,7 +390,7 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Charts row */}
+          {/* ── Charts row ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Bar chart */}
             <div className="card lg:col-span-2">
@@ -191,8 +399,16 @@ export default function Dashboard() {
                 <BarChart data={chartData} barSize={12} barGap={4}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
                   <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v) => fmt(v)} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
+                  <YAxis
+                    tick={{ fontSize: 12, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip
+                    formatter={(v) => fmt(v)}
+                    contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                  />
                   <Bar dataKey="Receitas" fill="#22c55e" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="Despesas" fill="#ef4444" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -203,37 +419,54 @@ export default function Dashboard() {
             <div className="card">
               <h2 className="section-title mb-4">Gastos por Categoria</h2>
               {pieData.length === 0 ? (
-                <div className="flex items-center justify-center h-[220px] text-gray-400 dark:text-gray-600 text-sm">Sem despesas no período</div>
+                <div className="flex items-center justify-center h-[220px] text-gray-400 dark:text-gray-600 text-sm">
+                  Sem despesas no período
+                </div>
               ) : (
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
-                    <Pie data={pieData} cx="50%" cy="45%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={3}>
+                    <Pie
+                      data={pieData}
+                      cx="50%" cy="45%"
+                      innerRadius={50} outerRadius={80}
+                      dataKey="value"
+                      paddingAngle={3}
+                    >
                       {pieData.map((entry) => (
                         <Cell key={entry.name} fill={CATEGORY_COLORS[entry.name] || '#6b7280'} />
                       ))}
                     </Pie>
                     <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v) => fmt(v)} contentStyle={{ borderRadius: 12, border: 'none' }} />
+                    <Tooltip
+                      formatter={(v) => fmt(v)}
+                      contentStyle={{ borderRadius: 12, border: 'none' }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               )}
             </div>
           </div>
 
-          {/* Budgets + Recent */}
+          {/* ── Budgets + Recent ── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Budget progress */}
             <div className="card">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="section-title">Orçamentos do Mês</h2>
-                <Link to="/budgets" className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1">
+                <Link
+                  to="/budgets"
+                  className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
+                >
                   Ver todos <ChevronRight size={12} />
                 </Link>
               </div>
               {budgetsWithSpent.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-sm text-gray-400 dark:text-gray-600">Nenhum orçamento definido</p>
-                  <Link to="/budgets" className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1 inline-block">
+                  <Link
+                    to="/budgets"
+                    className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1 inline-block"
+                  >
                     Criar orçamentos →
                   </Link>
                 </div>
@@ -250,7 +483,10 @@ export default function Dashboard() {
             <div className="card">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="section-title">Últimas Transações</h2>
-                <Link to="/transactions" className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1">
+                <Link
+                  to="/transactions"
+                  className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
+                >
                   Ver todas <ChevronRight size={12} />
                 </Link>
               </div>
@@ -263,7 +499,9 @@ export default function Dashboard() {
                   {recent.map((t) => (
                     <div key={t.id} className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        t.type === 'income' ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-red-100 dark:bg-red-900/30'
+                        t.type === 'income'
+                          ? 'bg-emerald-100 dark:bg-emerald-900/30'
+                          : 'bg-red-100 dark:bg-red-900/30'
                       }`}>
                         {t.type === 'income'
                           ? <ArrowUpRight size={14} className="text-emerald-600 dark:text-emerald-400" />
@@ -271,10 +509,18 @@ export default function Dashboard() {
                         }
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{t.description}</p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">{t.category} · {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {t.description}
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                          {t.category} · {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                        </p>
                       </div>
-                      <span className={`text-sm font-semibold ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
+                      <span className={`text-sm font-semibold ${
+                        t.type === 'income'
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-red-500 dark:text-red-400'
+                      }`}>
                         {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
                       </span>
                     </div>
@@ -283,6 +529,14 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+
+          {/* ── Cartões (NOVO) ── */}
+          {cards.length > 0 && (
+            <div className="card">
+              <CardsDashboardSection cards={cards} month={month} year={year} />
+            </div>
+          )}
+
         </div>
       )}
     </div>

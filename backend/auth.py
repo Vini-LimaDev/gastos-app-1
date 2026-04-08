@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel as PydanticBase
+from pydantic import BaseModel
+from typing import Optional
 from database import supabase, supabase_admin
 from models import UserRegister, UserLogin, Token
 
@@ -125,7 +126,7 @@ async def login(data: UserLogin):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"ERRO LOGINNNN: {type(e).__name__}: {e}")
+        print(f"ERRO LOGIN: {type(e).__name__}: {e}")
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
 
@@ -147,7 +148,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 
 # ── Atualizar perfil ──────────────────────────────────
-class ProfileUpdate(PydanticBase):
+class ProfileUpdate(BaseModel):
     name: str
 
 
@@ -170,15 +171,14 @@ async def update_profile(data: ProfileUpdate, current_user: dict = Depends(get_c
     return {"id": current_user["id"], "email": current_user["email"], "name": name}
 
 
-# ── Formato legado: access_token vindo no hash da URL ──
-class TokenConfirm(PydanticBase):
+# ── Confirmar token via hash da URL ──────────────────
+class TokenConfirm(BaseModel):
     access_token: str
     refresh_token: str = ""
 
 
 @router.post("/confirm-token", response_model=Token)
 async def confirm_token(data: TokenConfirm):
-    """Processa o access_token vindo do hash da URL (formato legado do Supabase)."""
     try:
         user_info = supabase.auth.get_user(data.access_token)
         if not user_info or not user_info.user:
@@ -205,3 +205,40 @@ async def confirm_token(data: TokenConfirm):
         raise
     except Exception:
         raise HTTPException(status_code=400, detail="Token inválido")
+
+
+# ── Vincular/remover número de WhatsApp ──────────────
+class PhoneUpdate(BaseModel):
+    phone: Optional[str] = None
+
+
+@router.put("/phone")
+async def update_phone(data: PhoneUpdate, current_user: dict = Depends(get_current_user)):
+    phone = data.phone
+
+    if phone is not None:
+        import re
+        if not re.match(r"^\+\d{10,15}$", phone):
+            raise HTTPException(
+                status_code=422,
+                detail="Número inválido. Use formato internacional: +5511999999999"
+            )
+
+        existing = supabase_admin.table("profiles") \
+            .select("id") \
+            .eq("phone", phone) \
+            .neq("id", current_user["id"]) \
+            .execute()
+
+        if existing.data:
+            raise HTTPException(
+                status_code=400,
+                detail="Este número já está vinculado a outra conta."
+            )
+
+    supabase_admin.table("profiles") \
+        .update({"phone": phone}) \
+        .eq("id", current_user["id"]) \
+        .execute()
+
+    return {"message": "Número atualizado com sucesso", "phone": phone}

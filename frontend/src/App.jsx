@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
+import { usePlan } from './hooks/usePlan'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ConfirmEmail from './pages/ConfirmEmail'
@@ -26,6 +27,22 @@ function PublicRoute({ children }) {
   return !user ? children : <Navigate to="/dashboard" replace />
 }
 
+// Redireciona para /planos se o trial expirou
+// Rotas liberadas mesmo expirado: /planos e /profile
+function PlanGuard({ children }) {
+  const { isExpired, loading } = usePlan()
+  const path = window.location.pathname
+
+  if (loading) return null
+
+  const allowedWhenExpired = ['/planos', '/profile']
+  if (isExpired && !allowedWhenExpired.includes(path)) {
+    return <Navigate to="/planos" replace />
+  }
+
+  return children
+}
+
 export default function App() {
   return (
     <ThemeProvider>
@@ -37,13 +54,13 @@ export default function App() {
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
             <Route path="/auth/confirm" element={<ConfirmEmail />} />
             <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-              <Route path="dashboard"    element={<Dashboard />} />
-              <Route path="transactions" element={<Transactions />} />
-              <Route path="cards"        element={<Cards />} />
-              <Route path="budgets"      element={<Budgets />} />
-              <Route path="goals"        element={<Goals />} />
-              <Route path="recurring"    element={<Recurring />} />
-              <Route path="categories"   element={<Categories />} />
+              <Route path="dashboard"    element={<PlanGuard><Dashboard /></PlanGuard>} />
+              <Route path="transactions" element={<PlanGuard><Transactions /></PlanGuard>} />
+              <Route path="cards"        element={<PlanGuard><Cards /></PlanGuard>} />
+              <Route path="budgets"      element={<PlanGuard><Budgets /></PlanGuard>} />
+              <Route path="goals"        element={<PlanGuard><Goals /></PlanGuard>} />
+              <Route path="recurring"    element={<PlanGuard><Recurring /></PlanGuard>} />
+              <Route path="categories"   element={<PlanGuard><Categories /></PlanGuard>} />
               <Route path="profile"      element={<Profile />} />
               <Route path="planos"       element={<Planos />} />
             </Route>

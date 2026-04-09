@@ -5,12 +5,12 @@ import { CheckCircle, Zap, Clock, XCircle, Loader, MessageCircle } from 'lucide-
 
 export default function Planos() {
   const { plan, isPro, isBasic, isTrial, daysLeft, loading, refetch } = usePlan()
-  const [subscribing, setSubscribing] = useState(null) // 'basic' | 'pro' | null
+  const [subscribing, setSubscribing] = useState(null)
   const [error, setError] = useState('')
 
   const params = new URLSearchParams(window.location.search)
   const justSubscribed = params.get('status') === 'success'
-  const subscribedPlan = params.get('plan') // 'basic' | 'pro'
+  const subscribedPlan = params.get('plan')
 
   const handleSubscribe = async (planType) => {
     setSubscribing(planType)
@@ -176,14 +176,11 @@ export default function Planos() {
           )}
         </div>
 
-        {/* Pro */}
-        <div className={`rounded-2xl border-2 p-6 bg-white dark:bg-gray-900 relative ${
-          isPro ? 'border-yellow-400' : 'border-gray-200 dark:border-gray-700'
-        }`}>
-          <div className={`absolute top-4 right-4 text-white text-xs font-bold px-3 py-1 rounded-full ${
-            isPro ? 'bg-yellow-400' : 'bg-gray-400 dark:bg-gray-600'
-          }`}>
-            {isPro ? 'ATUAL' : 'PREMIUM'}
+        {/* Pro — Em breve */}
+        <div className="rounded-2xl border-2 border-dashed border-yellow-300 dark:border-yellow-800 p-6 bg-yellow-50/30 dark:bg-yellow-900/10 relative opacity-75">
+          {/* Badge */}
+          <div className="absolute top-4 right-4 bg-yellow-400 text-white text-xs font-bold px-3 py-1 rounded-full">
+            EM BREVE
           </div>
           <div className="mb-4">
             <h2 className="text-lg font-bold text-yellow-500 dark:text-yellow-400">Pro</h2>
@@ -197,27 +194,17 @@ export default function Planos() {
               'Lançamentos por mensagem',
               'Suporte prioritário',
             ].map(f => (
-              <li key={f} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <CheckCircle size={14} className="text-yellow-500 flex-shrink-0" /> {f}
+              <li key={f} className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-500">
+                <CheckCircle size={14} className="text-yellow-400 flex-shrink-0" /> {f}
               </li>
             ))}
           </ul>
-          {isPro ? (
-            <div className="w-full text-center py-2 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 text-sm font-semibold">
-              ✓ Plano atual
-            </div>
-          ) : (
-            <button
-              onClick={() => handleSubscribe('pro')}
-              disabled={!!subscribing}
-              className="w-full py-3 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-white font-semibold transition disabled:opacity-60 flex items-center justify-center gap-2"
-            >
-              {subscribing === 'pro'
-                ? <><Loader size={15} className="animate-spin" /> Aguarde...</>
-                : 'Assinar Pro'
-              }
-            </button>
-          )}
+          <button
+            disabled
+            className="w-full py-3 rounded-xl bg-yellow-100 dark:bg-yellow-900/20 text-yellow-500 dark:text-yellow-600 font-semibold cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <Clock size={15} /> Em breve
+          </button>
         </div>
 
       </div>

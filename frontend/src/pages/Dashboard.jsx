@@ -7,7 +7,7 @@ import {
 import {
   TrendingUp, TrendingDown, DollarSign, Hash,
   ArrowUpRight, ArrowDownRight, ChevronRight, AlertTriangle,
-  CreditCard, ChevronDown, Calendar,
+  CreditCard, Flame,
 } from 'lucide-react'
 import { transactionsAPI, budgetsAPI, cardsAPI } from '../api'
 
@@ -72,7 +72,135 @@ function BudgetMiniCard({ budget, spent }) {
   )
 }
 
-// ── Cards Dashboard (embedded) ────────────────────────
+// ── Spending Heatmap ──────────────────────────────────
+const INTENSITY_CLASSES = [
+  'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600',
+  'bg-red-100 dark:bg-red-900/30 text-red-400',
+  'bg-red-300 dark:bg-red-700/60 text-red-600 dark:text-red-300',
+  'bg-red-500 dark:bg-red-600 text-white',
+  'bg-red-700 dark:bg-red-500 text-white font-bold',
+]
+const WEEK_LABELS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+
+function getIntensity(value, max) {
+  if (!value || value === 0) return 0
+  const pct = value / max
+  if (pct <= 0.25) return 1
+  if (pct <= 0.5)  return 2
+  if (pct <= 0.75) return 3
+  return 4
+}
+
+function SpendingHeatmap({ transactions = [], month, year }) {
+  const daysInMonth   = new Date(year, month, 0).getDate()
+  const firstWeekday  = new Date(year, month - 1, 1).getDay()
+
+  // gastos por dia
+  const spendByDay = {}
+  for (let d = 1; d <= daysInMonth; d++) spendByDay[d] = 0
+  transactions.forEach((t) => {
+    if (t.type !== 'expense') return
+    const d = new Date(t.date + 'T12:00:00')
+    if (d.getMonth() + 1 !== month || d.getFullYear() !== year) return
+    spendByDay[d.getDate()] = (spendByDay[d.getDate()] || 0) + t.amount
+  })
+
+  const values     = Object.values(spendByDay)
+  const maxDay     = Math.max(...values, 1)
+  const totalMonth = values.reduce((s, v) => s + v, 0)
+  const avgDaily   = daysInMonth > 0 ? totalMonth / daysInMonth : 0
+  const highestDay = Object.entries(spendByDay).sort((a, b) => b[1] - a[1])[0]
+
+  // grade semanal
+  const cells = Array(firstWeekday).fill(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+  while (cells.length % 7 !== 0) cells.push(null)
+  const weeks = []
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
+
+  const today = new Date()
+  const isCurrentMonth = today.getMonth() + 1 === month && today.getFullYear() === year
+
+  return (
+    <div className="card">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Flame size={16} className="text-red-500" />
+          <h2 className="section-title">Mapa de Calor</h2>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{fmt(totalMonth)}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">Média diária: {fmt(avgDaily)}</p>
+        </div>
+      </div>
+
+      {/* Labels dias da semana */}
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {WEEK_LABELS.map((d) => (
+          <div key={d} className="text-center text-[10px] text-gray-400 dark:text-gray-600 font-medium">
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Grade */}
+      <div className="space-y-1">
+        {weeks.map((week, wi) => (
+          <div key={wi} className="grid grid-cols-7 gap-1">
+            {week.map((day, di) => {
+              if (!day) return <div key={`e-${wi}-${di}`} className="aspect-square" />
+              const amount    = spendByDay[day] || 0
+              const intensity = getIntensity(amount, maxDay)
+              const isToday   = isCurrentMonth && today.getDate() === day
+              const isFuture  = isCurrentMonth && day > today.getDate()
+              return (
+                <div
+                  key={day}
+                  title={!isFuture && amount > 0 ? `Dia ${day}: ${fmt(amount)}` : `Dia ${day}`}
+                  className={`
+                    aspect-square rounded-md flex items-center justify-center
+                    text-[11px] select-none transition-transform hover:scale-110 cursor-default
+                    ${isFuture
+                      ? 'bg-gray-50 dark:bg-gray-900 text-gray-300 dark:text-gray-700'
+                      : INTENSITY_CLASSES[intensity]
+                    }
+                    ${isToday ? 'ring-2 ring-primary-500 ring-offset-1 dark:ring-offset-gray-900' : ''}
+                  `}
+                >
+                  {day}
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Legenda */}
+      <div className="flex items-center justify-between mt-4">
+        <span className="text-[10px] text-gray-400 dark:text-gray-600">Menos</span>
+        <div className="flex items-center gap-1">
+          {[0,1,2,3,4].map((i) => (
+            <div key={i} className={`w-4 h-4 rounded-sm ${INTENSITY_CLASSES[i].split(' ').slice(0,2).join(' ')}`} />
+          ))}
+        </div>
+        <span className="text-[10px] text-gray-400 dark:text-gray-600">Mais</span>
+      </div>
+
+      {/* Maior gasto */}
+      {highestDay && Number(highestDay[1]) > 0 && (
+        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Maior gasto</span>
+          <span className="text-xs font-semibold text-red-500">
+            {fmt(Number(highestDay[1]))} — dia {highestDay[0]}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Cards Dashboard Section ───────────────────────────
 function CardVisual({ card, small = false }) {
   const size = small ? 'w-16 h-10 text-[9px]' : 'w-full h-40 text-sm'
   return (
@@ -101,8 +229,8 @@ function CardVisual({ card, small = false }) {
 }
 
 function CardsDashboardSection({ cards, month, year }) {
-  const [txs, setTxs]         = useState([])
-  const [loading, setLoading] = useState(true)
+  const [txs, setTxs]           = useState([])
+  const [loading, setLoading]   = useState(true)
   const [expanded, setExpanded] = useState(null)
 
   useEffect(() => {
@@ -155,7 +283,6 @@ function CardsDashboardSection({ cards, month, year }) {
         </div>
       ) : (
         <>
-          {/* Summary cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {statsPerCard.map(({ card, total, count }) => (
               <div
@@ -192,7 +319,6 @@ function CardsDashboardSection({ cards, month, year }) {
             ))}
           </div>
 
-          {/* Expanded category breakdown */}
           {statsPerCard.map(({ card, total, byCategory }) =>
             expanded === card.id && Object.keys(byCategory).length > 0 ? (
               <div key={`exp-${card.id}`} className="card">
@@ -231,7 +357,6 @@ function CardsDashboardSection({ cards, month, year }) {
             ) : null
           )}
 
-          {/* Bar chart — only if 2+ cards have spending */}
           {barData.filter(b => b.total > 0).length >= 2 && (
             <div className="card">
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-4">
@@ -270,25 +395,31 @@ function CardsDashboardSection({ cards, month, year }) {
 // ── Main Dashboard ────────────────────────────────────
 export default function Dashboard() {
   const now = new Date()
-  const [month, setMonth]   = useState(now.getMonth() + 1)
-  const [year, setYear]     = useState(now.getFullYear())
+  const [month, setMonth]       = useState(now.getMonth() + 1)
+  const [year, setYear]         = useState(now.getFullYear())
   const [monthly, setMonthly]   = useState(null)
   const [yearly, setYearly]     = useState(null)
   const [recent, setRecent]     = useState([])
   const [budgets, setBudgets]   = useState([])
   const [cards, setCards]       = useState([])
+  const [monthTxs, setMonthTxs] = useState([])   // ← todas as txs do mês para o heatmap
   const [loading, setLoading]   = useState(true)
 
   const load = async () => {
     setLoading(true)
     try {
-      const [monthRes, yearRes, recentRes, budgetsRes, cardsRes] = await Promise.all([
+      const lastDay = new Date(year, month, 0).getDate()
+      const mm      = String(month).padStart(2, '0')
+
+      const [monthRes, yearRes, recentRes, budgetsRes, cardsRes, monthTxsRes] = await Promise.all([
         transactionsAPI.monthlySummary(year, month),
         transactionsAPI.yearlySummary(year),
         transactionsAPI.list({ start_date: `${year}-01-01` }),
         budgetsAPI.list({ month, year }),
         cardsAPI.list(),
+        transactionsAPI.list({ start_date: `${year}-${mm}-01`, end_date: `${year}-${mm}-${lastDay}` }),
       ])
+
       setMonthly(monthRes.data)
       setYearly(yearRes.data)
       const sorted = (recentRes.data || [])
@@ -297,6 +428,7 @@ export default function Dashboard() {
       setRecent(sorted)
       setBudgets(budgetsRes.data || [])
       setCards(cardsRes.data || [])
+      setMonthTxs(monthTxsRes.data || [])
     } catch {
       // silently fail
     } finally {
@@ -447,90 +579,97 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* ── Budgets + Recent ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Budget progress */}
-            <div className="card">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="section-title">Orçamentos do Mês</h2>
-                <Link
-                  to="/budgets"
-                  className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
-                >
-                  Ver todos <ChevronRight size={12} />
-                </Link>
-              </div>
-              {budgetsWithSpent.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-sm text-gray-400 dark:text-gray-600">Nenhum orçamento definido</p>
-                  <Link
-                    to="/budgets"
-                    className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1 inline-block"
-                  >
-                    Criar orçamentos →
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {budgetsWithSpent.slice(0, 5).map(({ budget, spent }) => (
-                    <BudgetMiniCard key={budget.id} budget={budget} spent={spent} />
-                  ))}
-                </div>
-              )}
+          {/* ── Heatmap ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+              <SpendingHeatmap transactions={monthTxs} month={month} year={year} />
             </div>
 
-            {/* Recent transactions */}
-            <div className="card">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="section-title">Últimas Transações</h2>
-                <Link
-                  to="/transactions"
-                  className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
-                >
-                  Ver todas <ChevronRight size={12} />
-                </Link>
+            {/* Budgets + Recent lado a lado no espaço restante */}
+            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Budget progress */}
+              <div className="card">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="section-title">Orçamentos do Mês</h2>
+                  <Link
+                    to="/budgets"
+                    className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
+                  >
+                    Ver todos <ChevronRight size={12} />
+                  </Link>
+                </div>
+                {budgetsWithSpent.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-gray-400 dark:text-gray-600">Nenhum orçamento definido</p>
+                    <Link
+                      to="/budgets"
+                      className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1 inline-block"
+                    >
+                      Criar orçamentos →
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {budgetsWithSpent.slice(0, 5).map(({ budget, spent }) => (
+                      <BudgetMiniCard key={budget.id} budget={budget} spent={spent} />
+                    ))}
+                  </div>
+                )}
               </div>
-              {recent.length === 0 ? (
-                <div className="text-center py-8 text-sm text-gray-400 dark:text-gray-600">
-                  Nenhuma transação ainda
+
+              {/* Recent transactions */}
+              <div className="card">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="section-title">Últimas Transações</h2>
+                  <Link
+                    to="/transactions"
+                    className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
+                  >
+                    Ver todas <ChevronRight size={12} />
+                  </Link>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {recent.map((t) => (
-                    <div key={t.id} className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        t.type === 'income'
-                          ? 'bg-emerald-100 dark:bg-emerald-900/30'
-                          : 'bg-red-100 dark:bg-red-900/30'
-                      }`}>
-                        {t.type === 'income'
-                          ? <ArrowUpRight size={14} className="text-emerald-600 dark:text-emerald-400" />
-                          : <ArrowDownRight size={14} className="text-red-500 dark:text-red-400" />
-                        }
+                {recent.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-gray-400 dark:text-gray-600">
+                    Nenhuma transação ainda
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {recent.map((t) => (
+                      <div key={t.id} className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          t.type === 'income'
+                            ? 'bg-emerald-100 dark:bg-emerald-900/30'
+                            : 'bg-red-100 dark:bg-red-900/30'
+                        }`}>
+                          {t.type === 'income'
+                            ? <ArrowUpRight size={14} className="text-emerald-600 dark:text-emerald-400" />
+                            : <ArrowDownRight size={14} className="text-red-500 dark:text-red-400" />
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {t.description}
+                          </p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
+                            {t.category} · {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                        <span className={`text-sm font-semibold ${
+                          t.type === 'income'
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-red-500 dark:text-red-400'
+                        }`}>
+                          {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
+                        </span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                          {t.description}
-                        </p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">
-                          {t.category} · {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                      <span className={`text-sm font-semibold ${
-                        t.type === 'income'
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-red-500 dark:text-red-400'
-                      }`}>
-                        {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* ── Cartões (NOVO) ── */}
+          {/* ── Cartões ── */}
           {cards.length > 0 && (
             <div className="card">
               <CardsDashboardSection cards={cards} month={month} year={year} />

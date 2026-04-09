@@ -2,11 +2,13 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
+import os
 from database import supabase, supabase_admin
 from models import UserRegister, UserLogin, Token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -27,7 +29,8 @@ async def register(data: UserRegister):
             "email": data.email,
             "password": data.password,
             "options": {
-                "data": {"name": data.name}
+                "data": {"name": data.name},
+                "email_redirect_to": f"{FRONTEND_URL}/auth/confirm",
             }
         })
         if not result.user:

@@ -93,4 +93,9 @@ export const cardsAPI = {
   delete: (id) => api.delete(`/cards/${id}`),
 }
 
+export const paymentsAPI = {
+  getStatus:          () => api.get('/payments/status'),
+  createSubscription: (planType) => api.post('/payments/create-subscription', { plan_type: planType }),
+}
+
 export default api

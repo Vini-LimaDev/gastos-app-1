@@ -3,6 +3,7 @@ import { RefreshCw, Plus, Trash2, Edit2, Play, X } from 'lucide-react'
 import { recurringAPI, transactionsAPI } from '../api'
 import { useCategories } from '../hooks/useCategories'
 import DatePicker from '../components/DatePicker'
+import ProGuard from '../components/ProGuard'
 
 const fmt = (v) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -39,7 +40,7 @@ const defaultForm = {
   category: 'Alimentação',
   notes: '',
   recurrence_interval: 'monthly',
-  date: today, // só usado para extrair o dia
+  date: today,
 }
 
 // ── Form Modal ────────────────────────────────────────────────────────────────
@@ -51,7 +52,6 @@ function RecurringForm({ template, onSuccess, onClose }) {
     category: template.category,
     notes: template.notes || '',
     recurrence_interval: template.recurrence_interval,
-    // Reconstrói uma data fictícia só para exibir o dia salvo no DatePicker
     date: template.day_of_month
       ? `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(template.day_of_month).padStart(2, '0')}`
       : today,
@@ -93,12 +93,6 @@ function RecurringForm({ template, onSuccess, onClose }) {
     } finally {
       setLoading(false)
     }
-  }
-
-  const dayLabel = {
-    monthly: 'Todo dia',
-    weekly: 'A partir da semana de',
-    yearly: 'Todo ano em',
   }
 
   return (
@@ -201,7 +195,7 @@ function RecurringForm({ template, onSuccess, onClose }) {
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
-export default function Recurring() {
+function RecurringContent() {
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -230,13 +224,13 @@ export default function Recurring() {
   const handleLaunchNow = async (t) => {
     setLaunching(t.id)
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const todayDate = new Date().toISOString().split('T')[0]
       await transactionsAPI.create({
         description: t.description,
         amount: t.amount,
         type: t.type,
         category: t.category,
-        date: today,
+        date: todayDate,
         notes: t.notes,
       })
       setSuccessMsg(`"${t.description}" lançada para hoje!`)
@@ -394,5 +388,13 @@ export default function Recurring() {
         />
       )}
     </div>
+  )
+}
+
+export default function Recurring() {
+  return (
+    <ProGuard>
+      <RecurringContent />
+    </ProGuard>
   )
 }

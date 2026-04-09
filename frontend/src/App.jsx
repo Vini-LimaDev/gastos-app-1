@@ -13,6 +13,8 @@ import Layout from './components/Layout'
 import Categories from './pages/Categories'
 import Cards from './pages/Cards'
 import Profile from './pages/Profile'
+import Planos from './pages/Planos'
+
 
 function PrivateRoute({ children }) {
   const { user } = useAuth()
@@ -43,6 +45,7 @@ export default function App() {
               <Route path="recurring"    element={<Recurring />} />
               <Route path="categories"   element={<Categories />} />
               <Route path="profile"      element={<Profile />} />
+              <Route path="planos"       element={<Planos />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

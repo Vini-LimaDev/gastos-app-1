@@ -14,6 +14,7 @@ import recurring
 from categories import router as categories_router
 from recurring_job import process_recurring_transactions
 from auth import get_current_user
+from payments import router as payments_router
 
 load_dotenv()
 
@@ -71,6 +72,7 @@ app.include_router(cards.router, prefix="/api")
 app.include_router(recurring.router, prefix="/api")
 app.include_router(categories_router, prefix="/api")
 app.include_router(whatsapp.router, prefix="/api")  
+app.include_router(payments_router, prefix="/api")
 
 # ── Endpoint manual ────────────────────────────────────────────────────────────
 

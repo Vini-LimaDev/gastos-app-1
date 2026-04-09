@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, Filter, Trash2, Edit2, ChevronUp, ChevronDown, RefreshCw, ScanLine } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { transactionsAPI, cardsAPI } from '../api'
+import { usePlan } from '../hooks/usePlan'
 import TransactionForm from '../components/TransactionForm'
 import InvoiceImport from '../components/InvoiceImport'
 
@@ -21,6 +23,9 @@ const fmt = (v) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
 export default function Transactions() {
+  const navigate = useNavigate()
+  const { canUseProFeatures } = usePlan()
+
   const [transactions, setTransactions] = useState([])
   const [cards, setCards]               = useState([])
   const [loading, setLoading]           = useState(true)
@@ -32,10 +37,9 @@ export default function Transactions() {
   const [sortField, setSortField]       = useState('date')
   const [sortDir, setSortDir]           = useState('desc')
 
-  // ── Selection state ──────────────────────────────────
-  const [selected, setSelected]           = useState(new Set())
+  const [selected, setSelected]               = useState(new Set())
   const [showBulkConfirm, setShowBulkConfirm] = useState(false)
-  const [bulkDeleting, setBulkDeleting]   = useState(false)
+  const [bulkDeleting, setBulkDeleting]       = useState(false)
 
   const [filters, setFilters] = useState({
     search: '', category: '', type: '', start_date: '', end_date: '',
@@ -68,7 +72,6 @@ export default function Transactions() {
     cardsAPI.list().then(res => setCards(res.data || [])).catch(() => {})
   }, [])
 
-  // ── Single delete ────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteId) return
     await transactionsAPI.delete(deleteId)
@@ -76,7 +79,6 @@ export default function Transactions() {
     load()
   }
 
-  // ── Bulk delete ──────────────────────────────────────
   const handleBulkDelete = async () => {
     setBulkDeleting(true)
     try {
@@ -92,6 +94,14 @@ export default function Transactions() {
     setShowForm(false)
     setEditTx(null)
     load()
+  }
+
+  const handleImportClick = () => {
+    if (!canUseProFeatures) {
+      navigate('/planos')
+      return
+    }
+    setShowImport(true)
   }
 
   const toggleSort = (field) => {
@@ -114,16 +124,12 @@ export default function Transactions() {
       return sortDir === 'asc' ? diff : -diff
     })
 
-  // ── Select helpers ───────────────────────────────────
-  const allSelected   = displayed.length > 0 && displayed.every(t => selected.has(t.id))
-  const someSelected  = displayed.some(t => selected.has(t.id))
+  const allSelected  = displayed.length > 0 && displayed.every(t => selected.has(t.id))
+  const someSelected = displayed.some(t => selected.has(t.id))
 
   const toggleAll = () => {
-    if (allSelected) {
-      setSelected(new Set())
-    } else {
-      setSelected(new Set(displayed.map(t => t.id)))
-    }
+    if (allSelected) setSelected(new Set())
+    else setSelected(new Set(displayed.map(t => t.id)))
   }
 
   const toggleOne = (id) => {
@@ -152,11 +158,16 @@ export default function Transactions() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowImport(true)}
+            onClick={handleImportClick}
             className="btn-secondary flex items-center gap-2"
           >
             <ScanLine size={16} />
             <span className="hidden sm:inline">Importar Fatura</span>
+            {!canUseProFeatures && (
+              <span className="text-xs bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-semibold">
+                Pro
+              </span>
+            )}
           </button>
           <button
             onClick={() => { setEditTx(null); setShowForm(true) }}
@@ -257,17 +268,14 @@ export default function Transactions() {
         )}
       </div>
 
-      {/* Bulk action bar — aparece quando há selecionados */}
+      {/* Bulk action bar */}
       {selected.size > 0 && (
         <div className="mb-3 flex items-center justify-between px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
           <span className="text-sm font-medium text-red-700 dark:text-red-400">
             {selected.size} transaç{selected.size !== 1 ? 'ões selecionadas' : 'ão selecionada'}
           </span>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSelected(new Set())}
-              className="text-xs text-red-500 dark:text-red-400 hover:underline"
-            >
+            <button onClick={() => setSelected(new Set())} className="text-xs text-red-500 dark:text-red-400 hover:underline">
               Limpar seleção
             </button>
             <button
@@ -295,7 +303,6 @@ export default function Transactions() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-                  {/* Checkbox selecionar tudo */}
                   <th className="pl-4 pr-2 py-3 w-8">
                     <input
                       type="checkbox"
@@ -422,9 +429,7 @@ export default function Transactions() {
             <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
               Remover {selected.size} transaç{selected.size !== 1 ? 'ões' : 'ão'}?
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-              Esta ação não pode ser desfeita.
-            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Esta ação não pode ser desfeita.</p>
             <div className="flex gap-3">
               <button onClick={() => setShowBulkConfirm(false)} className="btn-secondary flex-1">Cancelar</button>
               <button onClick={handleBulkDelete} disabled={bulkDeleting} className="btn-danger flex-1">
@@ -444,7 +449,7 @@ export default function Transactions() {
         />
       )}
 
-      {/* Invoice import */}
+      {/* Invoice import — só abre se tiver plano */}
       {showImport && (
         <InvoiceImport
           onClose={() => setShowImport(false)}

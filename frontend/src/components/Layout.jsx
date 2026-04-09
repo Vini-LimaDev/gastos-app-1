@@ -13,6 +13,7 @@ import {
   Tag,
   CreditCard,
   UserCircle,
+  Zap,
 } from 'lucide-react'
 
 const navItems = [
@@ -23,6 +24,7 @@ const navItems = [
   { to: '/goals',        label: 'Metas',        icon: Target },
   { to: '/recurring',    label: 'Recorrentes',  icon: RefreshCw },
   { to: '/categories',   label: 'Categorias',   icon: Tag },
+  { to: '/planos',       label: 'Planos',       icon: Zap },  
 ]
 
 export default function Layout() {

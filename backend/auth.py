@@ -5,6 +5,7 @@ from typing import Optional
 import os
 from database import supabase, supabase_admin
 from models import UserRegister, UserLogin, Token
+from datetime import datetime, timezone, timedelta
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
@@ -82,16 +83,30 @@ async def confirm_email(token_hash: str = Query(...), type: str = Query(...)):
         email = result.user.email
         name = result.user.user_metadata.get("name", email)
 
+        print(f"[CONFIRM] user_id={user_id} email={email}")  # 👈
+
         try:
             existing = supabase_admin.table("profiles").select("id").eq("id", user_id).execute()
+            print(f"[CONFIRM] existing={existing.data}")  # 👈
             if not existing.data:
-                supabase_admin.table("profiles").insert({
+                insert_result = supabase_admin.table("profiles").insert({
                     "id": user_id,
                     "email": email,
                     "name": name,
+                    "plan": "trial",
+                    "trial_ends_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
                 }).execute()
+                print(f"[CONFIRM] insert={insert_result.data}")  # 👈
+            else:
+                # Profile já existe — atualiza trial_ends_at se estiver nulo
+                profile = existing.data[0]
+                print(f"[CONFIRM] profile já existe, atualizando trial...")  # 👈
+                supabase_admin.table("profiles").update({
+                    "plan": "trial",
+                    "trial_ends_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
+                }).eq("id", user_id).execute()
         except Exception as e:
-            print(f"Erro ao criar profile no confirm: {e}")
+            print(f"[CONFIRM] ERRO no profile: {e}")  # 👈
 
         return {
             "access_token": result.session.access_token,
@@ -101,9 +116,9 @@ async def confirm_email(token_hash: str = Query(...), type: str = Query(...)):
 
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        print(f"[CONFIRM] EXCEPTION: {e}")  # 👈
         raise HTTPException(status_code=400, detail="Link de confirmação inválido ou expirado")
-
 
 @router.post("/login", response_model=Token)
 async def login(data: UserLogin):

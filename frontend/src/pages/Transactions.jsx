@@ -24,7 +24,7 @@ const fmt = (v) =>
 
 export default function Transactions() {
   const navigate = useNavigate()
-  const { canUseProFeatures } = usePlan()
+  const { canUseFeatures } = usePlan() // ✅ era canUseProFeatures (não existe no hook)
 
   const [transactions, setTransactions] = useState([])
   const [cards, setCards]               = useState([])
@@ -97,7 +97,7 @@ export default function Transactions() {
   }
 
   const handleImportClick = () => {
-    if (!canUseProFeatures) {
+    if (!canUseFeatures) { // ✅ era canUseProFeatures
       navigate('/planos')
       return
     }
@@ -163,9 +163,9 @@ export default function Transactions() {
           >
             <ScanLine size={16} />
             <span className="hidden sm:inline">Importar Fatura</span>
-            {!canUseProFeatures && (
+            {!canUseFeatures && ( // ✅ era canUseProFeatures
               <span className="text-xs bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-semibold">
-                Pro
+                Basic {/* ✅ era "Pro" */}
               </span>
             )}
           </button>

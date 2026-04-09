@@ -29,8 +29,8 @@ export function usePlan() {
   const isPro     = plan === 'pro'
   const isExpired = plan === 'expired'
 
-  // Basic, Pro e Trial têm acesso às features avançadas (import, recorrência)
-  const canUseFeatures   = isTrial || isBasic || isPro
+  // Basic, Pro têm acesso às features avançadas (import, recorrência)
+  const canUseFeatures   = isBasic || isPro
 
   // Só Pro tem acesso ao WhatsApp IA
   const canUseWhatsapp   = isPro

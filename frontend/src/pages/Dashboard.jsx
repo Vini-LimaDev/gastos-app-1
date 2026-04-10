@@ -9,22 +9,9 @@ import {
   ArrowUpRight, ArrowDownRight, ChevronRight, AlertTriangle,
   CreditCard, Flame,
 } from 'lucide-react'
-import { transactionsAPI, budgetsAPI, cardsAPI } from '../api'
+import { transactionsAPI, budgetsAPI, cardsAPI, categoriesAPI } from '../api'
 
 const MONTH_NAMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-
-const CATEGORY_COLORS = {
-  Alimentação: '#f97316',
-  Transporte:  '#3b82f6',
-  Moradia:     '#a855f7',
-  Saúde:       '#ef4444',
-  Lazer:       '#eab308',
-  Educação:    '#6366f1',
-  Vestuário:   '#ec4899',
-  Outros:      '#6b7280',
-}
-
-const CATEGORY_COLORS_HEX = CATEGORY_COLORS
 
 const fmt = (v) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -92,10 +79,9 @@ function getIntensity(value, max) {
 }
 
 function SpendingHeatmap({ transactions = [], month, year }) {
-  const daysInMonth   = new Date(year, month, 0).getDate()
-  const firstWeekday  = new Date(year, month - 1, 1).getDay()
+  const daysInMonth  = new Date(year, month, 0).getDate()
+  const firstWeekday = new Date(year, month - 1, 1).getDay()
 
-  // gastos por dia
   const spendByDay = {}
   for (let d = 1; d <= daysInMonth; d++) spendByDay[d] = 0
   transactions.forEach((t) => {
@@ -111,7 +97,6 @@ function SpendingHeatmap({ transactions = [], month, year }) {
   const avgDaily   = daysInMonth > 0 ? totalMonth / daysInMonth : 0
   const highestDay = Object.entries(spendByDay).sort((a, b) => b[1] - a[1])[0]
 
-  // grade semanal
   const cells = Array(firstWeekday).fill(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
   while (cells.length % 7 !== 0) cells.push(null)
@@ -123,7 +108,6 @@ function SpendingHeatmap({ transactions = [], month, year }) {
 
   return (
     <div className="card">
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Flame size={16} className="text-red-500" />
@@ -135,16 +119,12 @@ function SpendingHeatmap({ transactions = [], month, year }) {
         </div>
       </div>
 
-      {/* Labels dias da semana */}
       <div className="grid grid-cols-7 gap-1 mb-1">
         {WEEK_LABELS.map((d) => (
-          <div key={d} className="text-center text-[10px] text-gray-400 dark:text-gray-600 font-medium">
-            {d}
-          </div>
+          <div key={d} className="text-center text-[10px] text-gray-400 dark:text-gray-600 font-medium">{d}</div>
         ))}
       </div>
 
-      {/* Grade */}
       <div className="space-y-1">
         {weeks.map((week, wi) => (
           <div key={wi} className="grid grid-cols-7 gap-1">
@@ -176,7 +156,6 @@ function SpendingHeatmap({ transactions = [], month, year }) {
         ))}
       </div>
 
-      {/* Legenda */}
       <div className="flex items-center justify-between mt-4">
         <span className="text-[10px] text-gray-400 dark:text-gray-600">Menos</span>
         <div className="flex items-center gap-1">
@@ -187,7 +166,6 @@ function SpendingHeatmap({ transactions = [], month, year }) {
         <span className="text-[10px] text-gray-400 dark:text-gray-600">Mais</span>
       </div>
 
-      {/* Maior gasto */}
       {highestDay && Number(highestDay[1]) > 0 && (
         <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
           <span className="text-xs text-gray-500 dark:text-gray-400">Maior gasto</span>
@@ -201,34 +179,7 @@ function SpendingHeatmap({ transactions = [], month, year }) {
 }
 
 // ── Cards Dashboard Section ───────────────────────────
-function CardVisual({ card, small = false }) {
-  const size = small ? 'w-16 h-10 text-[9px]' : 'w-full h-40 text-sm'
-  return (
-    <div
-      className={`${size} rounded-xl flex flex-col justify-between p-3 text-white font-medium shadow-lg select-none`}
-      style={{ background: `linear-gradient(135deg, ${card.color}dd, ${card.color}88)` }}
-    >
-      {!small && (
-        <div className="flex justify-between items-start">
-          <span className="font-bold text-base opacity-90">{card.name}</span>
-          <CreditCard size={20} className="opacity-70" />
-        </div>
-      )}
-      <div className={`flex ${small ? 'items-center gap-1' : 'flex-col gap-1'}`}>
-        {!small && (
-          <span className="tracking-widest text-lg opacity-80">
-            •••• •••• •••• {card.last_four}
-          </span>
-        )}
-        <span className={`opacity-75 ${small ? 'text-[8px]' : 'text-xs'}`}>
-          {small ? card.last_four : card.bank}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function CardsDashboardSection({ cards, month, year }) {
+function CardsDashboardSection({ cards, month, year, categoryColorMap }) {
   const [txs, setTxs]           = useState([])
   const [loading, setLoading]   = useState(true)
   const [expanded, setExpanded] = useState(null)
@@ -333,7 +284,7 @@ function CardsDashboardSection({ cards, month, year }) {
                     .sort(([, a], [, b]) => b - a)
                     .map(([cat, val]) => {
                       const pct   = total > 0 ? (val / total) * 100 : 0
-                      const color = CATEGORY_COLORS_HEX[cat] || '#6b7280'
+                      const color = categoryColorMap[cat] || '#6b7280'
                       return (
                         <div key={cat}>
                           <div className="flex justify-between items-center mb-1">
@@ -395,15 +346,16 @@ function CardsDashboardSection({ cards, month, year }) {
 // ── Main Dashboard ────────────────────────────────────
 export default function Dashboard() {
   const now = new Date()
-  const [month, setMonth]       = useState(now.getMonth() + 1)
-  const [year, setYear]         = useState(now.getFullYear())
-  const [monthly, setMonthly]   = useState(null)
-  const [yearly, setYearly]     = useState(null)
-  const [recent, setRecent]     = useState([])
-  const [budgets, setBudgets]   = useState([])
-  const [cards, setCards]       = useState([])
-  const [monthTxs, setMonthTxs] = useState([])   // ← todas as txs do mês para o heatmap
-  const [loading, setLoading]   = useState(true)
+  const [month, setMonth]           = useState(now.getMonth() + 1)
+  const [year, setYear]             = useState(now.getFullYear())
+  const [monthly, setMonthly]       = useState(null)
+  const [yearly, setYearly]         = useState(null)
+  const [recent, setRecent]         = useState([])
+  const [budgets, setBudgets]       = useState([])
+  const [cards, setCards]           = useState([])
+  const [monthTxs, setMonthTxs]     = useState([])
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading]       = useState(true)
 
   const load = async () => {
     setLoading(true)
@@ -411,13 +363,14 @@ export default function Dashboard() {
       const lastDay = new Date(year, month, 0).getDate()
       const mm      = String(month).padStart(2, '0')
 
-      const [monthRes, yearRes, recentRes, budgetsRes, cardsRes, monthTxsRes] = await Promise.all([
+      const [monthRes, yearRes, recentRes, budgetsRes, cardsRes, monthTxsRes, catsRes] = await Promise.all([
         transactionsAPI.monthlySummary(year, month),
         transactionsAPI.yearlySummary(year),
         transactionsAPI.list({ start_date: `${year}-01-01` }),
         budgetsAPI.list({ month, year }),
         cardsAPI.list(),
         transactionsAPI.list({ start_date: `${year}-${mm}-01`, end_date: `${year}-${mm}-${lastDay}` }),
+        categoriesAPI.list(),
       ])
 
       setMonthly(monthRes.data)
@@ -429,6 +382,7 @@ export default function Dashboard() {
       setBudgets(budgetsRes.data || [])
       setCards(cardsRes.data || [])
       setMonthTxs(monthTxsRes.data || [])
+      setCategories(catsRes.data || [])
     } catch {
       // silently fail
     } finally {
@@ -437,6 +391,11 @@ export default function Dashboard() {
   }
 
   useEffect(() => { load() }, [month, year])
+
+  // Mapa dinâmico nome → cor (padrão + customizadas)
+  const categoryColorMap = Object.fromEntries(
+    categories.map(c => [c.name, c.color])
+  )
 
   const yearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1]
 
@@ -524,7 +483,6 @@ export default function Dashboard() {
 
           {/* ── Charts row ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Bar chart */}
             <div className="card lg:col-span-2">
               <h2 className="section-title mb-4">Receitas vs Despesas — {year}</h2>
               <ResponsiveContainer width="100%" height={220}>
@@ -547,7 +505,7 @@ export default function Dashboard() {
               </ResponsiveContainer>
             </div>
 
-            {/* Pie chart */}
+            {/* Pie chart — cores dinâmicas */}
             <div className="card">
               <h2 className="section-title mb-4">Gastos por Categoria</h2>
               {pieData.length === 0 ? (
@@ -565,7 +523,10 @@ export default function Dashboard() {
                       paddingAngle={3}
                     >
                       {pieData.map((entry) => (
-                        <Cell key={entry.name} fill={CATEGORY_COLORS[entry.name] || '#6b7280'} />
+                        <Cell
+                          key={entry.name}
+                          fill={categoryColorMap[entry.name] || '#6b7280'}
+                        />
                       ))}
                     </Pie>
                     <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
@@ -579,32 +540,25 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* ── Heatmap ── */}
+          {/* ── Heatmap + Budgets + Recent ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
               <SpendingHeatmap transactions={monthTxs} month={month} year={year} />
             </div>
 
-            {/* Budgets + Recent lado a lado no espaço restante */}
             <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
               {/* Budget progress */}
               <div className="card">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="section-title">Orçamentos do Mês</h2>
-                  <Link
-                    to="/budgets"
-                    className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
-                  >
+                  <Link to="/budgets" className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1">
                     Ver todos <ChevronRight size={12} />
                   </Link>
                 </div>
                 {budgetsWithSpent.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-sm text-gray-400 dark:text-gray-600">Nenhum orçamento definido</p>
-                    <Link
-                      to="/budgets"
-                      className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1 inline-block"
-                    >
+                    <Link to="/budgets" className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1 inline-block">
                       Criar orçamentos →
                     </Link>
                   </div>
@@ -621,10 +575,7 @@ export default function Dashboard() {
               <div className="card">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="section-title">Últimas Transações</h2>
-                  <Link
-                    to="/transactions"
-                    className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
-                  >
+                  <Link to="/transactions" className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1">
                     Ver todas <ChevronRight size={12} />
                   </Link>
                 </div>
@@ -637,9 +588,7 @@ export default function Dashboard() {
                     {recent.map((t) => (
                       <div key={t.id} className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          t.type === 'income'
-                            ? 'bg-emerald-100 dark:bg-emerald-900/30'
-                            : 'bg-red-100 dark:bg-red-900/30'
+                          t.type === 'income' ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-red-100 dark:bg-red-900/30'
                         }`}>
                           {t.type === 'income'
                             ? <ArrowUpRight size={14} className="text-emerald-600 dark:text-emerald-400" />
@@ -647,17 +596,13 @@ export default function Dashboard() {
                           }
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {t.description}
-                          </p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{t.description}</p>
                           <p className="text-xs text-gray-400 dark:text-gray-500">
                             {t.category} · {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
                           </p>
                         </div>
                         <span className={`text-sm font-semibold ${
-                          t.type === 'income'
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-red-500 dark:text-red-400'
+                          t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
                         }`}>
                           {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
                         </span>
@@ -672,7 +617,12 @@ export default function Dashboard() {
           {/* ── Cartões ── */}
           {cards.length > 0 && (
             <div className="card">
-              <CardsDashboardSection cards={cards} month={month} year={year} />
+              <CardsDashboardSection
+                cards={cards}
+                month={month}
+                year={year}
+                categoryColorMap={categoryColorMap}
+              />
             </div>
           )}
 

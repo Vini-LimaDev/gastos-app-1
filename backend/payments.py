@@ -10,7 +10,7 @@ Planos:
 
 import os
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import httpx
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -66,23 +66,35 @@ def _get_effective_plan(profile: dict) -> str:
 
 @router.get("/status")
 async def get_status(current_user: dict = Depends(get_current_user)):
-    """Retorna o plano atual do usuário."""
-    profile = (
+    result = (
         supabase_admin
         .table("profiles")
-        .select("plan, trial_ends_at, subscription_id, plan_updated_at")
+        .select("plan,trial_ends_at,subscription_id,plan_updated_at")
         .eq("id", current_user["id"])
-        .maybe_single()
+        .limit(1)
         .execute()
     )
 
-    if not profile.data:
-        raise HTTPException(status_code=404, detail="Perfil não encontrado")
+    data = result.data[0] if result.data else None
 
-    data           = profile.data
+    if not data:
+        trial_ends = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+        supabase_admin.table("profiles").upsert({
+            "id": current_user["id"],
+            "email": current_user["email"],
+            "name": current_user["email"],
+            "plan": "trial",
+            "trial_ends_at": trial_ends,
+        }).execute()
+        return {
+            "plan": "trial",
+            "trial_ends_at": trial_ends,
+            "subscription_id": None,
+            "plan_updated_at": None,
+        }
+
     effective_plan = _get_effective_plan(data)
 
-    # Persiste expiração do trial se necessário
     if effective_plan == "expired" and data.get("plan") == "trial":
         supabase_admin.table("profiles").update({
             "plan": "expired",

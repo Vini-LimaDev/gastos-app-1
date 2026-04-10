@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { useTheme } from '../context/ThemeContext.jsx'
+import { usePlan } from '../hooks/usePlan'
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -30,10 +31,15 @@ const navItems = [
 export default function Layout() {
   const { user, logout } = useAuth()
   const { isDark, toggleTheme } = useTheme()
+  const { isExpired } = usePlan()
 
   const initials = user?.name
     ? user.name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
     : '?'
+
+  const visibleNav = isExpired
+    ? navItems.filter(({ to }) => to === '/planos')
+    : navItems
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">
@@ -51,7 +57,7 @@ export default function Layout() {
 
         {/* Nav */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navItems.map(({ to, label, icon: Icon }) => (
+          {visibleNav.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

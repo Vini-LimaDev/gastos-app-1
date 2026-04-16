@@ -247,3 +247,8 @@
 .dark .react-datepicker__day--disabled {
   color: #374151;
 }
+
+em-emoji-picker {
+  height: 280px !important;
+  max-height: 280px !important;
+}

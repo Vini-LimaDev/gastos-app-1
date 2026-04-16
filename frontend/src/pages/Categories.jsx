@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Plus, Trash2, Edit2, X, Check } from 'lucide-react'
+import Picker from '@emoji-mart/react'
+import data from '@emoji-mart/data'
 import { categoriesAPI } from '../api'
 import { useCategories } from '../hooks/useCategories'
 
-const EMOJI_OPTIONS = ['🍽️','🚗','🏠','❤️','🎮','📚','👕','📦','💼','✈️','🎵','🐾','💊','🎁','🏋️','☕','🛒','💡','🎓','💰']
 const COLOR_OPTIONS = ['#f97316','#3b82f6','#a855f7','#ef4444','#eab308','#6366f1','#ec4899','#6b7280','#10b981','#14b8a6','#f43f5e','#8b5cf6']
 
 export default function Categories() {
@@ -14,14 +15,28 @@ export default function Categories() {
   const [form, setForm] = useState({ name: '', color: '#6366f1', icon: '🏷️' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showPicker, setShowPicker] = useState(false)
+  const pickerRef = useRef(null)
 
   const customs = categories.filter(c => !c.is_default)
   const defaults = categories.filter(c => c.is_default)
+
+  // Fecha picker ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        setShowPicker(false)
+      }
+    }
+    if (showPicker) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showPicker])
 
   const openCreate = () => {
     setEditId(null)
     setForm({ name: '', color: '#6366f1', icon: '🏷️' })
     setError('')
+    setShowPicker(false)
     setShowForm(true)
   }
 
@@ -29,6 +44,7 @@ export default function Categories() {
     setEditId(cat.id)
     setForm({ name: cat.name, color: cat.color, icon: cat.icon })
     setError('')
+    setShowPicker(false)
     setShowForm(true)
   }
 
@@ -140,7 +156,7 @@ export default function Categories() {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 {editId ? 'Editar Categoria' : 'Nova Categoria'}
               </h3>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => { setShowForm(false); setShowPicker(false) }} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
             </div>
@@ -165,25 +181,38 @@ export default function Categories() {
             {/* Ícone */}
             <div>
               <label className="label">Ícone</label>
-              <div className="flex flex-wrap gap-2">
-                {EMOJI_OPTIONS.map(e => (
-                  <button
-                    key={e}
-                    type="button"
-                    onClick={() => setForm({ ...form, icon: e })}
-                    className={`w-9 h-9 rounded-lg text-lg transition-all ${form.icon === e ? 'bg-primary-100 dark:bg-primary-900/40 ring-2 ring-primary-500' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200'}`}
-                  >
-                    {e}
-                  </button>
-                ))}
+              <div className="flex items-center gap-3">
+                {/* Botão que abre o picker */}
+                <button
+                  type="button"
+                  onClick={() => setShowPicker(p => !p)}
+                  className="w-14 h-14 rounded-xl text-2xl flex items-center justify-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600 transition-all"
+                  title="Escolher emoji"
+                >
+                  {form.icon}
+                </button>
+                <span className="text-sm text-gray-400">Clique para escolher</span>
               </div>
-              <input
-                value={form.icon}
-                onChange={e => setForm({ ...form, icon: e.target.value })}
-                className="input-field mt-2"
-                placeholder="Ou cole qualquer emoji..."
-                maxLength={10}
-              />
+
+              {/* Picker flutuante */}
+              {showPicker && (
+                <div ref={pickerRef} className="absolute z-[60] mt-2" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                  <Picker
+                    data={data}
+                    locale="pt"
+                    onEmojiSelect={(emoji) => {
+                      setForm({ ...form, icon: emoji.native })
+                      setShowPicker(false)
+                    }}
+                    theme="auto"
+                    previewPosition="none"
+                    skinTonePosition="none"
+                    perLine={11}
+                    emojiSize={20}
+                    emojiButtonSize={28}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Cor */}
@@ -220,7 +249,7 @@ export default function Categories() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setShowForm(false)} className="btn-secondary flex-1">Cancelar</button>
+              <button onClick={() => { setShowForm(false); setShowPicker(false) }} className="btn-secondary flex-1">Cancelar</button>
               <button onClick={handleSave} disabled={saving} className="btn-primary flex-1">
                 {saving ? 'Salvando...' : <><Check size={15} className="inline mr-1" />{editId ? 'Salvar' : 'Criar'}</>}
               </button>

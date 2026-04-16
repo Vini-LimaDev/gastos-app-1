@@ -23,7 +23,7 @@ const navItems = [
   { to: '/cards',        label: 'Cartões',      icon: CreditCard },
   { to: '/budgets',      label: 'Orçamentos',   icon: Wallet },
   { to: '/goals',        label: 'Metas',        icon: Target },
-  { to: '/recurring',    label: 'Recorrentes',  icon: RefreshCw },
+  { to: '/recurring',    label: 'Assinaturas / Transações Recorrentes',  icon: RefreshCw },
   { to: '/categories',   label: 'Categorias',   icon: Tag },
   { to: '/planos',       label: 'Planos',       icon: Zap },  
 ]

@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Target, Plus, Trash2, Edit2, Trophy, CheckCircle2, Clock } from 'lucide-react'
 import { goalsAPI } from '../api'
 import DatePicker from '../components/DatePicker'
+import Picker from '@emoji-mart/react'
+import data from '@emoji-mart/data'
 
 const fmt = (v) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
-
-const emojis = ['🏠', '🚗', '✈️', '📱', '💻', '🎓', '💍', '🏖️', '📦', '💰', '🎯', '🌟']
 
 function GoalCard({ goal, onEdit, onDeleteRequest, onUpdateProgress }) {
   const pct         = goal.target_amount > 0
@@ -154,14 +154,27 @@ function GoalCard({ goal, onEdit, onDeleteRequest, onUpdateProgress }) {
 const defaultForm = { name: '', target_amount: '', current_amount: '0', deadline: '', emoji: '🎯', notes: '' }
 
 export default function Goals() {
-  const [goals, setGoals]     = useState([])
-  const [loading, setLoading] = useState(true)
+  const [goals, setGoals]       = useState([])
+  const [loading, setLoading]   = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editGoal, setEditGoal] = useState(null)
   const [form, setForm]         = useState(defaultForm)
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState('')
   const [deleteId, setDeleteId] = useState(null)
+  const [showPicker, setShowPicker] = useState(false)
+  const pickerRef = useRef(null)
+
+  // Fecha picker ao clicar fora
+  useEffect(() => {
+    const handler = (e) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        setShowPicker(false)
+      }
+    }
+    if (showPicker) document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showPicker])
 
   const load = async () => {
     setLoading(true)
@@ -175,7 +188,12 @@ export default function Goals() {
 
   useEffect(() => { load() }, [])
 
-  const openCreate = () => { setEditGoal(null); setForm(defaultForm); setShowForm(true) }
+  const openCreate = () => {
+    setEditGoal(null)
+    setForm(defaultForm)
+    setShowPicker(false)
+    setShowForm(true)
+  }
 
   const openEdit = (goal) => {
     setEditGoal(goal)
@@ -184,6 +202,7 @@ export default function Goals() {
       current_amount: String(goal.current_amount), deadline: goal.deadline || '',
       emoji: goal.emoji || '🎯', notes: goal.notes || '',
     })
+    setShowPicker(false)
     setShowForm(true)
   }
 
@@ -250,7 +269,10 @@ export default function Goals() {
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 {editGoal ? 'Editar Meta' : 'Nova Meta'}
               </h2>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none">✕</button>
+              <button
+                onClick={() => { setShowForm(false); setShowPicker(false) }}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none"
+              >✕</button>
             </div>
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               {error && (
@@ -259,19 +281,39 @@ export default function Goals() {
                 </div>
               )}
 
+              {/* ── Emoji picker ── */}
               <div>
                 <label className="label">Ícone</label>
-                <div className="flex flex-wrap gap-2">
-                  {emojis.map((e) => (
-                    <button key={e} type="button" onClick={() => setForm({ ...form, emoji: e })}
-                      className={`text-xl w-9 h-9 rounded-lg flex items-center justify-center transition-all ${
-                        form.emoji === e
-                          ? 'bg-primary-100 dark:bg-primary-900/40 ring-2 ring-primary-500'
-                          : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                      }`}
-                    >{e}</button>
-                  ))}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowPicker((p) => !p)}
+                    className="w-14 h-14 rounded-xl text-2xl flex items-center justify-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600 transition-all"
+                    title="Escolher emoji"
+                  >
+                    {form.emoji}
+                  </button>
+                  <span className="text-sm text-gray-400 dark:text-gray-500">Clique para escolher</span>
                 </div>
+
+                {showPicker && (
+                  <div ref={pickerRef} className="absolute z-[60] mt-2" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                    <Picker
+                      data={data}
+                      locale="pt"
+                      onEmojiSelect={(emoji) => {
+                        setForm({ ...form, emoji: emoji.native })
+                        setShowPicker(false)
+                      }}
+                      theme="auto"
+                      previewPosition="none"
+                      skinTonePosition="none"
+                      perLine={11}
+                      emojiSize={20}
+                      emojiButtonSize={28}
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
@@ -313,7 +355,7 @@ export default function Goals() {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowForm(false)} className="btn-secondary flex-1">Cancelar</button>
+                <button type="button" onClick={() => { setShowForm(false); setShowPicker(false) }} className="btn-secondary flex-1">Cancelar</button>
                 <button type="submit" disabled={saving} className="btn-primary flex-1">
                   {saving ? 'Salvando...' : editGoal ? 'Salvar' : 'Criar Meta'}
                 </button>

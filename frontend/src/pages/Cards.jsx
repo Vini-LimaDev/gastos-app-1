@@ -14,36 +14,41 @@ const PRESET_COLORS = [
   '#EC0000','#0070AF','#242424','#16a34a','#0ea5e9',
 ]
 
-const fmt = (v) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
-
 const defaultForm = {
   name: '', bank: '', last_four: '', color: '#6366f1', card_type: 'credit',
 }
 
 // ── Card Visual ───────────────────────────────────────
 function CardVisual({ card, small = false }) {
-  const size = small ? 'w-16 h-10 text-[9px]' : 'w-full h-40 text-sm'
+  if (small) {
+    return (
+      <div
+        className="w-16 h-10 rounded-xl flex flex-col justify-between p-2 text-white font-medium shadow-lg select-none flex-shrink-0"
+        style={{ background: `linear-gradient(135deg, ${card.color}dd, ${card.color}88)` }}
+      >
+        <div className="flex justify-end">
+          <CreditCard size={10} className="opacity-70" />
+        </div>
+        <span className="text-[8px] opacity-75">{card.last_four}</span>
+      </div>
+    )
+  }
+
+  // Full — altura menor no mobile, maior no desktop
   return (
     <div
-      className={`${size} rounded-xl flex flex-col justify-between p-3 text-white font-medium shadow-lg select-none`}
+      className="w-full h-28 sm:h-36 rounded-xl flex flex-col justify-between p-4 text-white font-medium shadow-lg select-none"
       style={{ background: `linear-gradient(135deg, ${card.color}dd, ${card.color}88)` }}
     >
-      {!small && (
-        <div className="flex justify-between items-start">
-          <span className="font-bold text-base opacity-90">{card.name}</span>
-          <CreditCard size={20} className="opacity-70" />
-        </div>
-      )}
-      <div className={`flex ${small ? 'items-center gap-1' : 'flex-col gap-1'}`}>
-        {!small && (
-          <span className="tracking-widest text-lg opacity-80">
-            •••• •••• •••• {card.last_four}
-          </span>
-        )}
-        <span className={`opacity-75 ${small ? 'text-[8px]' : 'text-xs'}`}>
-          {small ? card.last_four : card.bank}
+      <div className="flex justify-between items-start">
+        <span className="font-bold text-sm sm:text-base opacity-90 truncate pr-2">{card.name}</span>
+        <CreditCard size={18} className="opacity-70 flex-shrink-0" />
+      </div>
+      <div className="flex flex-col gap-0.5">
+        <span className="tracking-widest text-sm sm:text-base opacity-80">
+          •••• •••• •••• {card.last_four}
         </span>
+        <span className="text-xs opacity-75">{card.bank}</span>
       </div>
     </div>
   )
@@ -112,20 +117,24 @@ export default function Cards() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
+
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Cartões</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Cartões</h1>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             Gerencie seus cartões e vincule às transações
           </p>
         </div>
-        <button onClick={openNew} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Novo Cartão
+        <button onClick={openNew} className="btn-primary flex items-center gap-1.5 px-3 py-2 text-sm">
+          <Plus size={15} />
+          <span className="hidden sm:inline">Novo Cartão</span>
+          <span className="sm:hidden">Novo</span>
         </button>
       </div>
 
+      {/* ── Lista ── */}
       {loading ? (
         <div className="flex justify-center py-16">
           <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
@@ -142,18 +151,19 @@ export default function Cards() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {cards.map((card) => (
-            <div key={card.id} className="card p-4">
-              <CardVisual card={card} />
-              <div className="mt-3 flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{card.name}</p>
+        <>
+          {/* MOBILE: lista compacta com minicard */}
+          <div className="sm:hidden card p-0 overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
+            {cards.map((card) => (
+              <div key={card.id} className="flex items-center gap-3 px-4 py-3">
+                <CardVisual card={card} small />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{card.name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {card.bank} · {card.card_type === 'credit' ? 'Crédito' : 'Débito'} · •••• {card.last_four}
                   </p>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 flex-shrink-0">
                   <button
                     onClick={() => openEdit(card)}
                     className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
@@ -168,16 +178,47 @@ export default function Cards() {
                   </button>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+
+          {/* DESKTOP: grid com card visual completo */}
+          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {cards.map((card) => (
+              <div key={card.id} className="card p-4">
+                <CardVisual card={card} />
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{card.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {card.bank} · {card.card_type === 'credit' ? 'Crédito' : 'Débito'} · •••• {card.last_four}
+                    </p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => openEdit(card)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button
+                      onClick={() => setDeleteId(card.id)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
-      {/* Form modal */}
+      {/* ── Form modal ── */}
       {showForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 {editCard ? 'Editar Cartão' : 'Novo Cartão'}
               </h2>
@@ -185,7 +226,7 @@ export default function Cards() {
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-5 space-y-4">
               {error && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
                   {error}
@@ -303,7 +344,7 @@ export default function Cards() {
         </div>
       )}
 
-      {/* Delete confirmation */}
+      {/* ── Delete confirmation ── */}
       {deleteId && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-6 w-full max-w-sm">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Filter, Trash2, Edit2, ChevronUp, ChevronDown, RefreshCw, ScanLine } from 'lucide-react'
+import { Plus, Search, Filter, Trash2, Edit2, ChevronUp, ChevronDown, RefreshCw, ScanLine, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { transactionsAPI, cardsAPI } from '../api'
 import { usePlan } from '../hooks/usePlan'
@@ -22,9 +22,14 @@ const CATEGORY_COLORS = {
 const fmt = (v) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
+const EMPTY_FILTERS = {
+  search: '', category: '', type: '', start_date: '',
+  end_date: '', min_amount: '', max_amount: '', card_id: ''
+}
+
 export default function Transactions() {
   const navigate = useNavigate()
-  const { canUseFeatures } = usePlan() // ✅ era canUseProFeatures (não existe no hook)
+  const { canUseFeatures } = usePlan()
 
   const [transactions, setTransactions] = useState([])
   const [cards, setCards]               = useState([])
@@ -41,12 +46,14 @@ export default function Transactions() {
   const [showBulkConfirm, setShowBulkConfirm] = useState(false)
   const [bulkDeleting, setBulkDeleting]       = useState(false)
 
-  const [filters, setFilters] = useState({
-    search: '', category: '', type: '', start_date: '', end_date: '',
-    min_amount: '', max_amount: '', card_id: '',
-  })
+  const [filters, setFilters] = useState(EMPTY_FILTERS)
 
   const cardMap = Object.fromEntries(cards.map(c => [c.id, c]))
+
+  const activeFilterCount = [
+    filters.type, filters.category, filters.card_id,
+    filters.start_date, filters.end_date, filters.min_amount, filters.max_amount
+  ].filter(Boolean).length
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -97,10 +104,7 @@ export default function Transactions() {
   }
 
   const handleImportClick = () => {
-    if (!canUseFeatures) { // ✅ era canUseProFeatures
-      navigate('/planos')
-      return
-    }
+    if (!canUseFeatures) { navigate('/planos'); return }
     setShowImport(true)
   }
 
@@ -148,147 +152,229 @@ export default function Transactions() {
     return sortDir === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />
   }
 
-  return (
-    <div className="p-6 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Transações</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{displayed.length} transações encontradas</p>
+  // ── Mobile card component ────────────────────────────────────────────────
+  const MobileCard = ({ t }) => {
+    const card = t.card_id ? cardMap[t.card_id] : null
+    const isChecked = selected.has(t.id)
+    const isIncome = t.type === 'income'
+
+    return (
+      <div className={`flex items-center gap-3 px-4 py-3.5 border-b border-gray-100 dark:border-gray-800 last:border-0 transition-colors ${
+        isChecked ? 'bg-red-50/60 dark:bg-red-900/10' : ''
+      }`}>
+        <input
+          type="checkbox"
+          checked={isChecked}
+          onChange={() => toggleOne(t.id)}
+          className="w-4 h-4 rounded accent-primary-600 cursor-pointer flex-shrink-0"
+        />
+
+        {/* barra colorida lateral */}
+        <div className={`w-1 self-stretch rounded-full flex-shrink-0 ${isIncome ? 'bg-primary-400' : 'bg-red-400'}`} />
+
+        {/* info principal */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="font-medium text-gray-900 dark:text-gray-100 truncate text-sm leading-tight">
+              {t.description}
+            </span>
+            {t.is_recurring && <RefreshCw size={11} className="text-blue-400 flex-shrink-0" />}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${CATEGORY_COLORS[t.category] || 'bg-gray-100 text-gray-700'}`}>
+              {t.category}
+            </span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">
+              {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+            </span>
+            {card && (
+              <span className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: card.color }} />
+                •••{card.last_four}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleImportClick}
-            className="btn-secondary flex items-center gap-2"
-          >
-            <ScanLine size={16} />
+
+        {/* valor + ações */}
+        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+          <span className={`font-bold text-sm ${isIncome ? 'text-primary-600 dark:text-primary-400' : 'text-red-500 dark:text-red-400'}`}>
+            {isIncome ? '+' : '-'}{fmt(t.amount)}
+          </span>
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => { setEditTx(t); setShowForm(true) }}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+            >
+              <Edit2 size={13} />
+            </button>
+            <button
+              onClick={() => setDeleteId(t.id)}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between mb-4 sm:mb-6 gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Transações</h1>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            {displayed.length} transações encontradas
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button onClick={handleImportClick} className="btn-secondary flex items-center gap-1.5 px-3 py-2 text-sm">
+            <ScanLine size={15} />
             <span className="hidden sm:inline">Importar Fatura</span>
-            {!canUseFeatures && ( // ✅ era canUseProFeatures
+            {!canUseFeatures && (
               <span className="text-xs bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-semibold">
-                Basic {/* ✅ era "Pro" */}
+                Basic
               </span>
             )}
           </button>
           <button
             onClick={() => { setEditTx(null); setShowForm(true) }}
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center gap-1.5 px-3 py-2 text-sm"
           >
-            <Plus size={16} /> Nova Transação
+            <Plus size={15} />
+            <span className="hidden sm:inline">Nova Transação</span>
+            <span className="sm:hidden">Nova</span>
           </button>
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      {/* ── Summary cards ── */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
         {[
           { label: 'Receitas', value: totalIncome, color: 'text-primary-600 dark:text-primary-400' },
           { label: 'Despesas', value: totalExpense, color: 'text-red-500 dark:text-red-400' },
           { label: 'Saldo', value: totalIncome - totalExpense, color: totalIncome - totalExpense >= 0 ? 'text-primary-600 dark:text-primary-400' : 'text-red-500 dark:text-red-400' },
         ].map(({ label, value, color }) => (
-          <div key={label} className="card py-4">
-            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{label}</p>
-            <p className={`text-xl font-bold ${color}`}>{fmt(value)}</p>
+          <div key={label} className="card py-3 sm:py-4 px-3 sm:px-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium truncate">{label}</p>
+            <p className={`text-sm sm:text-xl font-bold ${color} truncate`}>{fmt(value)}</p>
           </div>
         ))}
       </div>
 
-      {/* Search + filter bar */}
+      {/* ── Search + filter bar ── */}
       <div className="card mb-4">
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <div className="flex-1 relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               value={filters.search}
               onChange={e => setFilters({ ...filters, search: e.target.value })}
-              className="input-field pl-9"
+              className="input-field pl-9 text-sm"
               placeholder="Buscar por descrição ou categoria..."
             />
           </div>
           <button
             onClick={() => setShowFilters(v => !v)}
-            className={`btn-secondary flex items-center gap-2 ${showFilters ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-400' : ''}`}
+            className={`btn-secondary flex items-center gap-1.5 px-3 py-2 text-sm flex-shrink-0 relative ${
+              showFilters ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-400' : ''
+            }`}
           >
-            <Filter size={16} /> Filtros
+            <Filter size={15} />
+            <span className="hidden sm:inline">Filtros</span>
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary-500 text-white text-[10px] flex items-center justify-center font-bold">
+                {activeFilterCount}
+              </span>
+            )}
           </button>
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-            <div>
-              <label className="label">Tipo</label>
-              <select value={filters.type} onChange={e => setFilters({ ...filters, type: e.target.value })} className="input-field">
-                <option value="">Todos</option>
-                <option value="income">Receita</option>
-                <option value="expense">Despesa</option>
-              </select>
-            </div>
-            <div>
-              <label className="label">Categoria</label>
-              <select value={filters.category} onChange={e => setFilters({ ...filters, category: e.target.value })} className="input-field">
-                <option value="">Todas</option>
-                {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            {cards.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div>
-                <label className="label">Cartão</label>
-                <select value={filters.card_id} onChange={e => setFilters({ ...filters, card_id: e.target.value })} className="input-field">
+                <label className="label">Tipo</label>
+                <select value={filters.type} onChange={e => setFilters({ ...filters, type: e.target.value })} className="input-field text-sm">
                   <option value="">Todos</option>
-                  {cards.map(c => (
-                    <option key={c.id} value={c.id}>{c.bank} •••{c.last_four}</option>
-                  ))}
+                  <option value="income">Receita</option>
+                  <option value="expense">Despesa</option>
                 </select>
               </div>
-            )}
-            <div>
-              <label className="label">Data início</label>
-              <input type="date" value={filters.start_date} onChange={e => setFilters({ ...filters, start_date: e.target.value })} className="input-field" />
+              <div>
+                <label className="label">Categoria</label>
+                <select value={filters.category} onChange={e => setFilters({ ...filters, category: e.target.value })} className="input-field text-sm">
+                  <option value="">Todas</option>
+                  {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              {cards.length > 0 && (
+                <div>
+                  <label className="label">Cartão</label>
+                  <select value={filters.card_id} onChange={e => setFilters({ ...filters, card_id: e.target.value })} className="input-field text-sm">
+                    <option value="">Todos</option>
+                    {cards.map(c => (
+                      <option key={c.id} value={c.id}>{c.bank} •••{c.last_four}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="label">Data início</label>
+                <input type="date" value={filters.start_date} onChange={e => setFilters({ ...filters, start_date: e.target.value })} className="input-field text-sm" />
+              </div>
+              <div>
+                <label className="label">Data fim</label>
+                <input type="date" value={filters.end_date} onChange={e => setFilters({ ...filters, end_date: e.target.value })} className="input-field text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label">Valor mín.</label>
+                  <input type="number" step="0.01" value={filters.min_amount} onChange={e => setFilters({ ...filters, min_amount: e.target.value })} className="input-field text-sm" placeholder="0,00" />
+                </div>
+                <div>
+                  <label className="label">Valor máx.</label>
+                  <input type="number" step="0.01" value={filters.max_amount} onChange={e => setFilters({ ...filters, max_amount: e.target.value })} className="input-field text-sm" placeholder="9999,99" />
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="label">Data fim</label>
-              <input type="date" value={filters.end_date} onChange={e => setFilters({ ...filters, end_date: e.target.value })} className="input-field" />
-            </div>
-            <div>
-              <label className="label">Valor mínimo</label>
-              <input type="number" step="0.01" value={filters.min_amount} onChange={e => setFilters({ ...filters, min_amount: e.target.value })} className="input-field" placeholder="0,00" />
-            </div>
-            <div>
-              <label className="label">Valor máximo</label>
-              <input type="number" step="0.01" value={filters.max_amount} onChange={e => setFilters({ ...filters, max_amount: e.target.value })} className="input-field" placeholder="9999,99" />
-            </div>
-            <div className="col-span-2 md:col-span-3 flex justify-end">
-              <button
-                onClick={() => setFilters({ search: '', category: '', type: '', start_date: '', end_date: '', min_amount: '', max_amount: '', card_id: '' })}
-                className="btn-secondary text-sm"
-              >
-                Limpar filtros
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+              {activeFilterCount > 0
+                ? <span className="text-xs text-gray-500 dark:text-gray-400">{activeFilterCount} filtro{activeFilterCount !== 1 ? 's' : ''} ativo{activeFilterCount !== 1 ? 's' : ''}</span>
+                : <span />
+              }
+              <button onClick={() => setFilters(EMPTY_FILTERS)} className="btn-secondary text-sm flex items-center gap-1.5">
+                <X size={13} /> Limpar filtros
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Bulk action bar */}
+      {/* ── Bulk action bar ── */}
       {selected.size > 0 && (
-        <div className="mb-3 flex items-center justify-between px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+        <div className="mb-3 flex items-center justify-between px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl gap-3">
           <span className="text-sm font-medium text-red-700 dark:text-red-400">
-            {selected.size} transaç{selected.size !== 1 ? 'ões selecionadas' : 'ão selecionada'}
+            {selected.size} {selected.size !== 1 ? 'selecionadas' : 'selecionada'}
           </span>
           <div className="flex items-center gap-2">
             <button onClick={() => setSelected(new Set())} className="text-xs text-red-500 dark:text-red-400 hover:underline">
-              Limpar seleção
+              Limpar
             </button>
-            <button
-              onClick={() => setShowBulkConfirm(true)}
-              className="btn-danger flex items-center gap-1.5 text-sm py-1.5 px-3"
-            >
-              <Trash2 size={14} /> Excluir selecionadas
+            <button onClick={() => setShowBulkConfirm(true)} className="btn-danger flex items-center gap-1.5 text-sm py-1.5 px-3">
+              <Trash2 size={14} />
+              <span className="hidden sm:inline">Excluir selecionadas</span>
+              <span className="sm:hidden">Excluir</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* Table */}
+      {/* ── List ── */}
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
@@ -298,117 +384,109 @@ export default function Transactions() {
           Nenhuma transação encontrada
         </div>
       ) : (
-        <div className="card overflow-hidden p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-                  <th className="pl-4 pr-2 py-3 w-8">
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      ref={el => { if (el) el.indeterminate = someSelected && !allSelected }}
-                      onChange={toggleAll}
-                      className="w-4 h-4 rounded accent-primary-600 cursor-pointer"
-                    />
-                  </th>
-                  <th
-                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none"
-                    onClick={() => toggleSort('date')}
-                  >
-                    <span className="flex items-center gap-1">Data <SortIcon field="date" /></span>
-                  </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Descrição</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Categoria</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Cartão</th>
-                  <th
-                    className="text-right px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none"
-                    onClick={() => toggleSort('amount')}
-                  >
-                    <span className="flex items-center justify-end gap-1">Valor <SortIcon field="amount" /></span>
-                  </th>
-                  <th className="px-4 py-3 w-20" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                {displayed.map((t) => {
-                  const card = t.card_id ? cardMap[t.card_id] : null
-                  const isChecked = selected.has(t.id)
-                  return (
-                    <tr
-                      key={t.id}
-                      className={`transition-colors ${isChecked ? 'bg-red-50/60 dark:bg-red-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
-                    >
-                      <td className="pl-4 pr-2 py-3 w-8">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleOne(t.id)}
-                          className="w-4 h-4 rounded accent-primary-600 cursor-pointer"
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                        {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900 dark:text-gray-100">{t.description}</span>
-                          {t.is_recurring && (
-                            <span title="Recorrente" className="text-blue-400 dark:text-blue-500">
-                              <RefreshCw size={12} />
-                            </span>
-                          )}
-                        </div>
-                        {t.notes && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t.notes}</p>}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${CATEGORY_COLORS[t.category] || 'bg-gray-100 text-gray-700'}`}>
-                          {t.category}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {card ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: card.color }} />
-                            <span className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                              {card.bank} •••{card.last_four}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
-                        )}
-                      </td>
-                      <td className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${
-                        t.type === 'income' ? 'text-primary-600 dark:text-primary-400' : 'text-red-500 dark:text-red-400'
-                      }`}>
-                        {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => { setEditTx(t); setShowForm(true) }}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(t.id)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+        <>
+          {/* MOBILE: lista de cards */}
+          <div className="sm:hidden card overflow-hidden p-0">
+            <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={el => { if (el) el.indeterminate = someSelected && !allSelected }}
+                onChange={toggleAll}
+                className="w-4 h-4 rounded accent-primary-600 cursor-pointer"
+              />
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                Selecionar todos
+              </span>
+            </div>
+            {displayed.map(t => <MobileCard key={t.id} t={t} />)}
           </div>
-        </div>
+
+          {/* DESKTOP: tabela */}
+          <div className="hidden sm:block card overflow-hidden p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+                    <th className="pl-4 pr-2 py-3 w-8">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        ref={el => { if (el) el.indeterminate = someSelected && !allSelected }}
+                        onChange={toggleAll}
+                        className="w-4 h-4 rounded accent-primary-600 cursor-pointer"
+                      />
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none" onClick={() => toggleSort('date')}>
+                      <span className="flex items-center gap-1">Data <SortIcon field="date" /></span>
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Descrição</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Categoria</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Cartão</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none" onClick={() => toggleSort('amount')}>
+                      <span className="flex items-center justify-end gap-1">Valor <SortIcon field="amount" /></span>
+                    </th>
+                    <th className="px-4 py-3 w-20" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                  {displayed.map((t) => {
+                    const card = t.card_id ? cardMap[t.card_id] : null
+                    const isChecked = selected.has(t.id)
+                    return (
+                      <tr key={t.id} className={`transition-colors ${isChecked ? 'bg-red-50/60 dark:bg-red-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}>
+                        <td className="pl-4 pr-2 py-3 w-8">
+                          <input type="checkbox" checked={isChecked} onChange={() => toggleOne(t.id)} className="w-4 h-4 rounded accent-primary-600 cursor-pointer" />
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                          {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900 dark:text-gray-100">{t.description}</span>
+                            {t.is_recurring && <RefreshCw size={12} className="text-blue-400 dark:text-blue-500" />}
+                          </div>
+                          {t.notes && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t.notes}</p>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${CATEGORY_COLORS[t.category] || 'bg-gray-100 text-gray-700'}`}>
+                            {t.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {card ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: card.color }} />
+                              <span className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">{card.bank} •••{card.last_four}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
+                          )}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${t.type === 'income' ? 'text-primary-600 dark:text-primary-400' : 'text-red-500 dark:text-red-400'}`}>
+                          {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => { setEditTx(t); setShowForm(true) }} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all">
+                              <Edit2 size={14} />
+                            </button>
+                            <button onClick={() => setDeleteId(t.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
-      {/* Single delete confirmation */}
+      {/* ── Delete confirm ── */}
       {deleteId && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-6 w-full max-w-sm">
@@ -422,7 +500,6 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* Bulk delete confirmation */}
       {showBulkConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-6 w-full max-w-sm">
@@ -440,7 +517,6 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* Transaction form */}
       {showForm && (
         <TransactionForm
           transaction={editTx}
@@ -449,7 +525,6 @@ export default function Transactions() {
         />
       )}
 
-      {/* Invoice import — só abre se tiver plano */}
       {showImport && (
         <InvoiceImport
           onClose={() => setShowImport(false)}

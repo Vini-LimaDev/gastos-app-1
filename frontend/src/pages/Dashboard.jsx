@@ -16,17 +16,20 @@ const MONTH_NAMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out'
 const fmt = (v) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
+// versão compacta pra mobile (sem decimais)
+const fmtShort = (v) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
+
 // ── Stat Card ─────────────────────────────────────────
-function StatCard({ label, value, icon: Icon, color, sub }) {
+function StatCard({ label, value, icon: Icon, color }) {
   return (
-    <div className="card flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${color}`}>
-        <Icon size={22} className="text-white" />
+    <div className="card flex items-center gap-3 py-3 px-3 sm:py-4 sm:px-4">
+      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${color}`}>
+        <Icon size={20} className="text-white" />
       </div>
-      <div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{label}</p>
-        <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
-        {sub && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{sub}</p>}
+      <div className="min-w-0">
+        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium truncate">{label}</p>
+        <p className="text-base sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate">{value}</p>
       </div>
     </div>
   )
@@ -49,7 +52,7 @@ function BudgetMiniCard({ budget, spent }) {
           {budget.category}
         </span>
         <span className="text-xs text-gray-500 dark:text-gray-400">
-          {fmt(spent)} / {fmt(budget.limit_amount)}
+          {fmtShort(spent)} / {fmtShort(budget.limit_amount)}
         </span>
       </div>
       <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
@@ -67,7 +70,7 @@ const INTENSITY_CLASSES = [
   'bg-red-500 dark:bg-red-600 text-white',
   'bg-red-700 dark:bg-red-500 text-white font-bold',
 ]
-const WEEK_LABELS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+const WEEK_LABELS = ['D','S','T','Q','Q','S','S']
 
 function getIntensity(value, max) {
   if (!value || value === 0) return 0
@@ -114,14 +117,14 @@ function SpendingHeatmap({ transactions = [], month, year }) {
           <h2 className="section-title">Mapa de Calor</h2>
         </div>
         <div className="text-right">
-          <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{fmt(totalMonth)}</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500">Média diária: {fmt(avgDaily)}</p>
+          <p className="text-base font-bold text-gray-900 dark:text-gray-100">{fmt(totalMonth)}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">Média: {fmtShort(avgDaily)}/dia</p>
         </div>
       </div>
 
       <div className="grid grid-cols-7 gap-1 mb-1">
-        {WEEK_LABELS.map((d) => (
-          <div key={d} className="text-center text-[10px] text-gray-400 dark:text-gray-600 font-medium">{d}</div>
+        {WEEK_LABELS.map((d, i) => (
+          <div key={i} className="text-center text-[10px] text-gray-400 dark:text-gray-600 font-medium">{d}</div>
         ))}
       </div>
 
@@ -140,7 +143,7 @@ function SpendingHeatmap({ transactions = [], month, year }) {
                   title={!isFuture && amount > 0 ? `Dia ${day}: ${fmt(amount)}` : `Dia ${day}`}
                   className={`
                     aspect-square rounded-md flex items-center justify-center
-                    text-[11px] select-none transition-transform hover:scale-110 cursor-default
+                    text-[10px] select-none transition-transform hover:scale-110 cursor-default
                     ${isFuture
                       ? 'bg-gray-50 dark:bg-gray-900 text-gray-300 dark:text-gray-700'
                       : INTENSITY_CLASSES[intensity]
@@ -276,7 +279,7 @@ function CardsDashboardSection({ cards, month, year, categoryColorMap }) {
                 <div className="flex items-center gap-3 mb-4">
                   <span className="w-3 h-3 rounded-full" style={{ background: card.color }} />
                   <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-                    {card.name} — Gastos por Categoria em {MONTH_NAMES[month - 1]}
+                    {card.name} — {MONTH_NAMES[month - 1]}
                   </h3>
                 </div>
                 <div className="space-y-2.5">
@@ -311,7 +314,7 @@ function CardsDashboardSection({ cards, month, year, categoryColorMap }) {
           {barData.filter(b => b.total > 0).length >= 2 && (
             <div className="card">
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-4">
-                Comparativo de Gastos — {MONTH_NAMES[month - 1]}/{year}
+                Comparativo — {MONTH_NAMES[month - 1]}/{year}
               </h3>
               <ResponsiveContainer width="100%" height={180}>
                 <BarChart data={barData} barSize={32} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
@@ -321,7 +324,7 @@ function CardsDashboardSection({ cards, month, year, categoryColorMap }) {
                     tick={{ fontSize: 11, fill: '#9ca3af' }}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
+                    tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}
                   />
                   <Tooltip
                     formatter={v => fmt(v)}
@@ -392,7 +395,6 @@ export default function Dashboard() {
 
   useEffect(() => { load() }, [month, year])
 
-  // Mapa dinâmico nome → cor (padrão + customizadas)
   const categoryColorMap = Object.fromEntries(
     categories.map(c => [c.name, c.color])
   )
@@ -419,18 +421,23 @@ export default function Dashboard() {
   })
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Visão geral das suas finanças</p>
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+
+      {/* ── Header ── */}
+      <div className="mb-4 sm:mb-6">
+        {/* linha 1: título + subtítulo */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">Visão geral das suas finanças</p>
+          </div>
         </div>
+        {/* linha 2: selects em row separado pra não espremer */}
         <div className="flex items-center gap-2">
           <select
             value={month}
             onChange={(e) => setMonth(Number(e.target.value))}
-            className="input-field w-auto text-sm"
+            className="input-field flex-1 sm:flex-none sm:w-auto text-sm"
           >
             {MONTH_NAMES.map((m, i) => (
               <option key={i + 1} value={i + 1}>{m}</option>
@@ -439,7 +446,7 @@ export default function Dashboard() {
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="input-field w-auto text-sm"
+            className="input-field flex-1 sm:flex-none sm:w-auto text-sm"
           >
             {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
@@ -451,10 +458,10 @@ export default function Dashboard() {
           <div className="w-10 h-10 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
 
-          {/* ── Stat cards ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* ── Stat cards: 2 cols mobile, 4 cols desktop ── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
             <StatCard
               label="Saldo do Mês"
               value={fmt(monthly?.balance ?? 0)}
@@ -482,18 +489,25 @@ export default function Dashboard() {
           </div>
 
           {/* ── Charts row ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            {/* Bar chart — ocupa tela cheia no mobile */}
             <div className="card lg:col-span-2">
               <h2 className="section-title mb-4">Receitas vs Despesas — {year}</h2>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={chartData} barSize={12} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                  <YAxis
-                    tick={{ fontSize: 12, fill: '#9ca3af' }}
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={chartData} barSize={10} barGap={2} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: '#9ca3af' }}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => v === 0 ? '' : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}
+                    width={28}
                   />
                   <Tooltip
                     formatter={(v) => fmt(v)}
@@ -505,20 +519,20 @@ export default function Dashboard() {
               </ResponsiveContainer>
             </div>
 
-            {/* Pie chart — cores dinâmicas */}
+            {/* Pie chart */}
             <div className="card">
               <h2 className="section-title mb-4">Gastos por Categoria</h2>
               {pieData.length === 0 ? (
-                <div className="flex items-center justify-center h-[220px] text-gray-400 dark:text-gray-600 text-sm">
+                <div className="flex items-center justify-center h-[200px] text-gray-400 dark:text-gray-600 text-sm">
                   Sem despesas no período
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={220}>
+                <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie
                       data={pieData}
-                      cx="50%" cy="45%"
-                      innerRadius={50} outerRadius={80}
+                      cx="50%" cy="42%"
+                      innerRadius={45} outerRadius={72}
                       dataKey="value"
                       paddingAngle={3}
                     >
@@ -529,7 +543,7 @@ export default function Dashboard() {
                         />
                       ))}
                     </Pie>
-                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10 }} />
                     <Tooltip
                       formatter={(v) => fmt(v)}
                       contentStyle={{ borderRadius: 12, border: 'none' }}
@@ -541,12 +555,12 @@ export default function Dashboard() {
           </div>
 
           {/* ── Heatmap + Budgets + Recent ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="lg:col-span-1">
               <SpendingHeatmap transactions={monthTxs} month={month} year={year} />
             </div>
 
-            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {/* Budget progress */}
               <div className="card">
                 <div className="flex items-center justify-between mb-4">
@@ -601,10 +615,10 @@ export default function Dashboard() {
                             {t.category} · {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
                           </p>
                         </div>
-                        <span className={`text-sm font-semibold ${
+                        <span className={`text-sm font-semibold flex-shrink-0 ${
                           t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
                         }`}>
-                          {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
+                          {t.type === 'income' ? '+' : '-'}{fmtShort(t.amount)}
                         </span>
                       </div>
                     ))}

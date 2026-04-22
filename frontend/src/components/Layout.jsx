@@ -66,7 +66,7 @@ export default function Layout() {
       {/* Logo */}
       <div className="p-6 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center justify-between">
-          <img src="/gemini-svg.svg" className="w-full h-20 object-contain" />
+          <img src="/gemini-svg.png" className="w-full h-30 object-contain" />
           {/* Botão fechar — só visível no mobile */}
           <button
             onClick={() => setSidebarOpen(false)}
@@ -187,7 +187,7 @@ export default function Layout() {
           >
             <Menu size={22} />
           </button>
-          <img src="/gemini-svg.svg" className="h-8 object-contain" />
+          <img src="/gemini-svg.png" className="h-14 object-contain" />
           {/* Avatar pequeno no canto direito */}
           <NavLink to="/profile">
             <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">

@@ -26,7 +26,7 @@ export default function Login() {
         {/* Logo */}
         <div className="text-center mb-8">
           <img 
-            src="/gemini-svg.svg" 
+            src="/gemini-svg.png" 
             alt="Planilha de Gastos" 
             className="w-100% h-100% object-contain mx-auto mb-3"
           />

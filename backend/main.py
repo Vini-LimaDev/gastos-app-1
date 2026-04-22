@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import logging
+import os
 import auth
 import transactions
 import budgets
@@ -27,9 +28,21 @@ app = FastAPI(
     description="API para controle de gastos pessoais",
 )
 
+# ── CORS ───────────────────────────────────────────────────────────────────────
+# FRONTEND_URL pode conter múltiplas origens separadas por vírgula
+_frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+allowed_origins = [u.strip().rstrip("/") for u in _frontend_url.split(",")]
+
+# Garante que dev sempre funciona
+for _dev in ["http://localhost:5173", "http://localhost:3000"]:
+    if _dev not in allowed_origins:
+        allowed_origins.append(_dev)
+
+logger.info(f"CORS allowed origins: {allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -71,7 +84,7 @@ app.include_router(goals.router, prefix="/api")
 app.include_router(cards.router, prefix="/api")
 app.include_router(recurring.router, prefix="/api")
 app.include_router(categories_router, prefix="/api")
-app.include_router(whatsapp.router, prefix="/api")  
+app.include_router(whatsapp.router, prefix="/api")
 app.include_router(payments_router, prefix="/api")
 
 # ── Endpoint manual ────────────────────────────────────────────────────────────

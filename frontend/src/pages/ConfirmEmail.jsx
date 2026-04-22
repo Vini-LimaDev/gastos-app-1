@@ -66,7 +66,7 @@ export default function ConfirmEmail() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src="/gemini-svg.svg" alt="GastosApp" className="w-100% h-100% object-contain mx-auto mb-3" />
+          <img src="/gemini-svg.png" alt="GastosApp" className="w-100% h-100% object-contain mx-auto mb-3" />
         </div>
 
         <div className="card text-center">

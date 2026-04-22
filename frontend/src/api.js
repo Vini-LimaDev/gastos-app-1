@@ -1,7 +1,11 @@
 import axios from 'axios'
 
+// Em produção (Vercel): VITE_API_URL = https://seu-backend.up.railway.app
+// Em dev: vazio — o proxy do vite.config.js redireciona /api → localhost:8012
+const BASE_URL = import.meta.env.VITE_API_URL || ''
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -27,75 +31,77 @@ api.interceptors.response.use(
 
 // ── Auth ──────────────────────────────────────────────
 export const authAPI = {
-  register: (data) => api.post('/auth/register', data),
-  login: (data) => api.post('/auth/login', data),
-  logout: () => api.post('/auth/logout'),
-  me: () => api.get('/auth/me'),
+  register: (data) => api.post('/api/auth/register', data),
+  login: (data) => api.post('/api/auth/login', data),
+  logout: () => api.post('/api/auth/logout'),
+  me: () => api.get('/api/auth/me'),
   confirmEmail: (tokenHash, type) =>
-    api.get('/auth/confirm', { params: { token_hash: tokenHash, type } }),
-  confirmToken: (accessToken) =>                                    
-    api.post('/auth/confirm-token', { access_token: accessToken }),
-  updateProfile: (data) => api.put('/auth/profile', data),  
+    api.get('/api/auth/confirm', { params: { token_hash: tokenHash, type } }),
+  confirmToken: (accessToken) =>
+    api.post('/api/auth/confirm-token', { access_token: accessToken }),
+  updateProfile: (data) => api.put('/api/auth/profile', data),
 }
 
 // ── Transactions ──────────────────────────────────────
 export const transactionsAPI = {
-  list: (params) => api.get('/transactions/', { params }),
-  create: (data) => api.post('/transactions/', data),
-  update: (id, data) => api.put(`/transactions/${id}`, data),
-  delete: (id) => api.delete(`/transactions/${id}`),
+  list: (params) => api.get('/api/transactions/', { params }),
+  create: (data) => api.post('/api/transactions/', data),
+  update: (id, data) => api.put(`/api/transactions/${id}`, data),
+  delete: (id) => api.delete(`/api/transactions/${id}`),
   monthlySummary: (year, month) =>
-    api.get('/transactions/summary/monthly', { params: { year, month } }),
+    api.get('/api/transactions/summary/monthly', { params: { year, month } }),
   yearlySummary: (year) =>
-    api.get('/transactions/summary/yearly', { params: { year } }),
+    api.get('/api/transactions/summary/yearly', { params: { year } }),
   deleteInstallmentGroup: (groupId) =>
-    api.delete(`/transactions/installment-group/${groupId}`),
+    api.delete(`/api/transactions/installment-group/${groupId}`),
 }
 
 // ── Recurring Templates ───────────────────────────────
 export const recurringAPI = {
-  list: () => api.get('/recurring-templates/'),
-  create: (data) => api.post('/recurring-templates/', data),
-  update: (id, data) => api.put(`/recurring-templates/${id}`, data),
-  delete: (id) => api.delete(`/recurring-templates/${id}`),
-  processNow: () => api.post('/recurring/process'),
+  list: () => api.get('/api/recurring-templates/'),
+  create: (data) => api.post('/api/recurring-templates/', data),
+  update: (id, data) => api.put(`/api/recurring-templates/${id}`, data),
+  delete: (id) => api.delete(`/api/recurring-templates/${id}`),
+  processNow: () => api.post('/api/recurring/process'),
 }
 
 // ── Budgets ───────────────────────────────────────────
 export const budgetsAPI = {
-  list: (params) => api.get('/budgets/', { params }),
-  create: (data) => api.post('/budgets/', data),
-  update: (id, data) => api.put(`/budgets/${id}`, data),
-  delete: (id) => api.delete(`/budgets/${id}`),
+  list: (params) => api.get('/api/budgets/', { params }),
+  create: (data) => api.post('/api/budgets/', data),
+  update: (id, data) => api.put(`/api/budgets/${id}`, data),
+  delete: (id) => api.delete(`/api/budgets/${id}`),
 }
 
 // ── Goals ─────────────────────────────────────────────
 export const goalsAPI = {
-  list: () => api.get('/goals/'),
-  create: (data) => api.post('/goals/', data),
-  update: (id, data) => api.put(`/goals/${id}`, data),
-  delete: (id) => api.delete(`/goals/${id}`),
+  list: () => api.get('/api/goals/'),
+  create: (data) => api.post('/api/goals/', data),
+  update: (id, data) => api.put(`/api/goals/${id}`, data),
+  delete: (id) => api.delete(`/api/goals/${id}`),
 }
 
 // ── Categories ────────────────────────────────────────
 export const categoriesAPI = {
-  list:   ()           => api.get('/categories/'),
-  create: (data)       => api.post('/categories/', data),
-  update: (id, data)   => api.put(`/categories/${id}`, data),
-  delete: (id)         => api.delete(`/categories/${id}`),
+  list: () => api.get('/api/categories/'),
+  create: (data) => api.post('/api/categories/', data),
+  update: (id, data) => api.put(`/api/categories/${id}`, data),
+  delete: (id) => api.delete(`/api/categories/${id}`),
 }
 
 // ── Cards ─────────────────────────────────────────────
 export const cardsAPI = {
-  list: () => api.get('/cards/'),
-  create: (data) => api.post('/cards/', data),
-  update: (id, data) => api.put(`/cards/${id}`, data),
-  delete: (id) => api.delete(`/cards/${id}`),
+  list: () => api.get('/api/cards/'),
+  create: (data) => api.post('/api/cards/', data),
+  update: (id, data) => api.put(`/api/cards/${id}`, data),
+  delete: (id) => api.delete(`/api/cards/${id}`),
 }
 
+// ── Payments ──────────────────────────────────────────
 export const paymentsAPI = {
-  getStatus:          () => api.get('/payments/status'),
-  createSubscription: (planType) => api.post('/payments/create-subscription', { plan_type: planType }),
+  getStatus: () => api.get('/api/payments/status'),
+  createSubscription: (planType) =>
+    api.post('/api/payments/create-subscription', { plan_type: planType }),
 }
 
 export default api

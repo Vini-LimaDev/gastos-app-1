@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { Mail, CheckCircle } from 'lucide-react'
+import { Mail, CheckCircle, Eye, EyeOff } from 'lucide-react'
 
 export default function Register() {
   const { register, loading } = useAuth()
@@ -9,6 +9,7 @@ export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [error, setError] = useState('')
   const [pendingEmail, setPendingEmail] = useState(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -118,15 +119,25 @@ export default function Register() {
             </div>
             <div>
               <label className="label">Senha</label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="input-field"
-                placeholder="Mínimo 6 caracteres"
-                required
-                minLength={6}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  className="input-field pr-10"
+                  placeholder="Mínimo 6 caracteres"
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <button
               type="submit"

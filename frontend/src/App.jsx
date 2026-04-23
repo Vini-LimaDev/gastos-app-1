@@ -5,6 +5,8 @@ import { usePlan } from './hooks/usePlan'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ConfirmEmail from './pages/ConfirmEmail'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import Transactions from './pages/Transactions'
 import Budgets from './pages/Budgets'
@@ -53,6 +55,8 @@ export default function App() {
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
             <Route path="/auth/confirm" element={<ConfirmEmail />} />
+            <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
               <Route path="dashboard"    element={<PlanGuard><Dashboard /></PlanGuard>} />
               <Route path="transactions" element={<PlanGuard><Transactions /></PlanGuard>} />

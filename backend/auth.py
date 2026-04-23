@@ -83,11 +83,11 @@ async def confirm_email(token_hash: str = Query(...), type: str = Query(...)):
         email = result.user.email
         name = result.user.user_metadata.get("name", email)
 
-        print(f"[CONFIRM] user_id={user_id} email={email}")  # 👈
+        print(f"[CONFIRM] user_id={user_id} email={email}")
 
         try:
             existing = supabase_admin.table("profiles").select("id").eq("id", user_id).execute()
-            print(f"[CONFIRM] existing={existing.data}")  # 👈
+            print(f"[CONFIRM] existing={existing.data}")
             if not existing.data:
                 insert_result = supabase_admin.table("profiles").insert({
                     "id": user_id,
@@ -96,17 +96,15 @@ async def confirm_email(token_hash: str = Query(...), type: str = Query(...)):
                     "plan": "trial",
                     "trial_ends_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
                 }).execute()
-                print(f"[CONFIRM] insert={insert_result.data}")  # 👈
+                print(f"[CONFIRM] insert={insert_result.data}")
             else:
-                # Profile já existe — atualiza trial_ends_at se estiver nulo
-                profile = existing.data[0]
-                print(f"[CONFIRM] profile já existe, atualizando trial...")  # 👈
+                print(f"[CONFIRM] profile já existe, atualizando trial...")
                 supabase_admin.table("profiles").update({
                     "plan": "trial",
                     "trial_ends_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
                 }).eq("id", user_id).execute()
         except Exception as e:
-            print(f"[CONFIRM] ERRO no profile: {e}")  # 👈
+            print(f"[CONFIRM] ERRO no profile: {e}")
 
         return {
             "access_token": result.session.access_token,
@@ -117,8 +115,9 @@ async def confirm_email(token_hash: str = Query(...), type: str = Query(...)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[CONFIRM] EXCEPTION: {e}")  # 👈
+        print(f"[CONFIRM] EXCEPTION: {e}")
         raise HTTPException(status_code=400, detail="Link de confirmação inválido ou expirado")
+
 
 @router.post("/login", response_model=Token)
 async def login(data: UserLogin):
@@ -163,6 +162,57 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     if profile.data:
         return profile.data
     return current_user
+
+
+# ── Esqueci a senha ───────────────────────────────────
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+@router.post("/forgot-password")
+async def forgot_password(data: ForgotPasswordRequest):
+    try:
+        supabase.auth.reset_password_for_email(
+            data.email,
+            options={"redirect_to": f"{FRONTEND_URL}/reset-password"}
+        )
+    except Exception as e:
+        print(f"[FORGOT-PASSWORD] erro: {e}")
+    # Sempre retorna sucesso para não vazar se o e-mail existe
+    return {"message": "Se este e-mail estiver cadastrado, você receberá um link em breve."}
+
+
+# ── Redefinir senha (via token do link de e-mail) ────
+class ResetPasswordRequest(BaseModel):
+    access_token: str
+    new_password: str
+
+
+@router.post("/reset-password")
+async def reset_password(data: ResetPasswordRequest):
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 6 caracteres.")
+    try:
+        # Valida o token e obtém o user_id
+        user_info = supabase.auth.get_user(data.access_token)
+        if not user_info or not user_info.user:
+            raise HTTPException(status_code=400, detail="Link inválido ou expirado.")
+
+        user_id = user_info.user.id
+
+        # Atualiza a senha via admin (não precisa de sessão ativa)
+        supabase_admin.auth.admin.update_user_by_id(
+            user_id,
+            {"password": data.new_password}
+        )
+
+        return {"message": "Senha redefinida com sucesso."}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[RESET-PASSWORD] erro: {e}")
+        raise HTTPException(status_code=400, detail="Não foi possível redefinir a senha. O link pode ter expirado.")
 
 
 # ── Atualizar perfil ──────────────────────────────────

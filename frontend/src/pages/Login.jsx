@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { TrendingUp } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function Login() {
   const { login, loading } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -25,9 +26,9 @@ export default function Login() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img 
-            src="/gemini-svg.png" 
-            alt="Planilha de Gastos" 
+          <img
+            src="/gemini-svg.png"
+            alt="Planilha de Gastos"
             className="w-100% h-100% object-contain mx-auto mb-3"
           />
         </div>
@@ -54,15 +55,33 @@ export default function Login() {
               />
             </div>
             <div>
-              <label className="label">Senha</label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="input-field"
-                placeholder="••••••••"
-                required
-              />
+              <div className="flex items-center justify-between mb-1">
+                <label className="label !mb-0">Senha</label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                >
+                  Esqueci minha senha
+                </Link>
+              </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  className="input-field pr-10"
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <button
               type="submit"

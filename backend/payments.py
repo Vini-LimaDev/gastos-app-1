@@ -28,12 +28,12 @@ FRONTEND_URL    = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 PLANS = {
     "basic": {
-        "name": "GastosApp Basic",
+        "name": "Fynx Basic",
         "amount": 9.90,
         "back_url_param": "basic",
     },
     "pro": {
-        "name": "GastosApp Pro",
+        "name": "Fynx Pro",
         "amount": 19.90,
         "back_url_param": "pro",
     },
@@ -149,7 +149,7 @@ async def create_subscription(
             "transaction_amount": plan_cfg["amount"],
             "currency_id": "BRL",
         },
-        "payer_email": os.getenv("MP_TEST_PAYER_EMAIL", email),
+        "payer_email": email,
         "external_reference": f"{user_id}|{body.plan_type}",  # user_id + plano para o webhook
         "back_url": f"{FRONTEND_URL}/planos?status=success&plan={plan_cfg['back_url_param']}",
         "status": "pending",

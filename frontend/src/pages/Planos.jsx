@@ -61,7 +61,7 @@ export default function Planos() {
         <div className="mb-8 p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 flex items-center gap-3">
           <CheckCircle className="text-green-500" size={22} />
           <p className="text-green-700 dark:text-green-400 font-medium">
-            Assinatura confirmada! Bem-vindo ao GastosApp {subscribedPlan === 'pro' ? 'Pro' : 'Basic'} 🎉
+            Assinatura confirmada! Bem-vindo ao Fynx {subscribedPlan === 'pro' ? 'Pro' : 'Basic'} 🎉
           </p>
         </div>
       )}
@@ -69,7 +69,7 @@ export default function Planos() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-1">Planos</h1>
-        <p className="text-gray-500 dark:text-gray-400">Gerencie sua assinatura do GastosApp</p>
+        <p className="text-gray-500 dark:text-gray-400">Gerencie sua assinatura do Fynx</p>
       </div>
 
       {/* Status atual */}

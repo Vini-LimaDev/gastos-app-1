@@ -5,8 +5,6 @@ import { usePlan } from './hooks/usePlan'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ConfirmEmail from './pages/ConfirmEmail'
-import ForgotPassword from './pages/ForgotPassword'
-import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import Transactions from './pages/Transactions'
 import Budgets from './pages/Budgets'
@@ -17,6 +15,8 @@ import Categories from './pages/Categories'
 import Cards from './pages/Cards'
 import Profile from './pages/Profile'
 import Planos from './pages/Planos'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 
 
 function PrivateRoute({ children }) {

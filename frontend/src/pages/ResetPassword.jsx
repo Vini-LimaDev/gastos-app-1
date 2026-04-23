@@ -11,21 +11,47 @@ export default function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [verifying, setVerifying] = useState(true)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
 
-  // Extrai o access_token que o Supabase manda no hash da URL do e-mail de reset
   useEffect(() => {
-    const hash = window.location.hash.replace('#', '')
-    const params = new URLSearchParams(hash)
-    const token = params.get('access_token')
-    const type = params.get('type')
+    const exchangeToken = async () => {
+      // Query string: ?token=xxx&type=recovery  (padrão atual do Supabase com redirect_to)
+      const qp = new URLSearchParams(window.location.search)
+      const tokenHash = qp.get('token')
+      const type = qp.get('type')
 
-    if (token && type === 'recovery') {
-      setAccessToken(token)
-    } else {
+      // Hash fragment fallback: #access_token=xxx&type=recovery  (fluxo implícito legado)
+      const hp = new URLSearchParams(window.location.hash.replace('#', ''))
+      const hashToken = hp.get('access_token')
+      const hashType = hp.get('type')
+
+      if (hashToken && hashType === 'recovery') {
+        // Já é um access_token direto — usa direto
+        setAccessToken(hashToken)
+        setVerifying(false)
+        return
+      }
+
+      if (tokenHash && type === 'recovery') {
+        // token_hash precisa ser trocado por access_token via OTP verify
+        try {
+          const res = await api.post('/api/auth/verify-recovery', { token_hash: tokenHash })
+          setAccessToken(res.data.access_token)
+        } catch (err) {
+          setError(err.response?.data?.detail || 'Link inválido ou expirado.')
+        } finally {
+          setVerifying(false)
+        }
+        return
+      }
+
       setError('Link de redefinição inválido ou expirado.')
+      setVerifying(false)
     }
+
+    exchangeToken()
   }, [])
 
   const handleSubmit = async (e) => {
@@ -54,6 +80,14 @@ export default function ResetPassword() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (verifying) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
+        <div className="text-sm text-gray-500 dark:text-gray-400">Verificando link...</div>
+      </div>
+    )
   }
 
   if (done) {

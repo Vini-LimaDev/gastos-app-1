@@ -64,7 +64,7 @@ export default function Layout() {
   const SidebarContent = () => (
     <>
       {/* Logo */}
-      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+      <div className="p-1 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center justify-between">
           <img src="/gemini-svg.png" className="w-full h-30 object-contain" />
           {/* Botão fechar — só visível no mobile */}

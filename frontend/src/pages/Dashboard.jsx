@@ -425,31 +425,45 @@ export default function Dashboard() {
 
       {/* ── Header ── */}
       <div className="mb-4 sm:mb-6">
-        {/* linha 1: título + subtítulo */}
+        {/* linha 1: título + anos em pill */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">Visão geral das suas finanças</p>
           </div>
-        </div>
-        {/* linha 2: selects em row separado pra não espremer */}
-        <div className="flex items-center gap-2">
-          <select
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-            className="input-field flex-1 sm:flex-none sm:w-auto text-sm"
-          >
-            {MONTH_NAMES.map((m, i) => (
-              <option key={i + 1} value={i + 1}>{m}</option>
+          {/* Ano — pill pequeno no canto */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-full p-1 flex-shrink-0">
+            {yearOptions.map((y) => (
+              <button
+                key={y}
+                onClick={() => setYear(y)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 ${
+                  year === y
+                    ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                {y}
+              </button>
             ))}
-          </select>
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            className="input-field flex-1 sm:flex-none sm:w-auto text-sm"
-          >
-            {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+          </div>
+        </div>
+
+        {/* linha 2: meses em pill scrollável */}
+        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 overflow-x-auto scrollbar-hide">
+          {MONTH_NAMES.map((m, i) => (
+            <button
+              key={i + 1}
+              onClick={() => setMonth(i + 1)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+                month === i + 1
+                  ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              {m}
+            </button>
+          ))}
         </div>
       </div>
 

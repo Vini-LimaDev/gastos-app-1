@@ -85,6 +85,8 @@ function SpendingHeatmap({ transactions = [], month, year }) {
   const daysInMonth  = new Date(year, month, 0).getDate()
   const firstWeekday = new Date(year, month - 1, 1).getDay()
 
+  const [tooltip, setTooltip] = useState(null) // { day, amount, x, y }
+
   const spendByDay = {}
   for (let d = 1; d <= daysInMonth; d++) spendByDay[d] = 0
   transactions.forEach((t) => {
@@ -109,8 +111,32 @@ function SpendingHeatmap({ transactions = [], month, year }) {
   const today = new Date()
   const isCurrentMonth = today.getMonth() + 1 === month && today.getFullYear() === year
 
+  const handleDayClick = (e, day, amount, isFuture) => {
+    if (isFuture) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = rect.left + rect.width / 2
+    const y = rect.top
+    setTooltip(prev => prev?.day === day ? null : { day, amount, x, y })
+
+  }
+
   return (
     <div className="card">
+      {/* Tooltip */}
+      {tooltip && (
+        <div
+          className="fixed z-50 px-3 py-1.5 rounded-xl bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-semibold shadow-xl pointer-events-none whitespace-nowrap"
+          style={{
+            left: tooltip.x,
+            top: tooltip.y - 8,
+            transform: 'translate(-50%, -100%)',
+          }}
+        >
+          {tooltip.amount > 0 ? `Dia ${tooltip.day}: ${fmt(tooltip.amount)}` : `Dia ${tooltip.day}: sem gastos`}
+          <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-gray-900 dark:border-t-gray-100" />
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Flame size={16} className="text-red-500" />
@@ -137,18 +163,20 @@ function SpendingHeatmap({ transactions = [], month, year }) {
               const intensity = getIntensity(amount, maxDay)
               const isToday   = isCurrentMonth && today.getDate() === day
               const isFuture  = isCurrentMonth && day > today.getDate()
+              const isActive  = tooltip?.day === day
               return (
                 <div
                   key={day}
-                  title={!isFuture && amount > 0 ? `Dia ${day}: ${fmt(amount)}` : `Dia ${day}`}
+                  onClick={(e) => handleDayClick(e, day, amount, isFuture)}
                   className={`
                     aspect-square rounded-md flex items-center justify-center
-                    text-[10px] select-none transition-transform hover:scale-110 cursor-default
+                    text-[10px] select-none transition-transform cursor-pointer
+                    ${isActive ? 'scale-110 ring-2 ring-offset-1 ring-gray-900 dark:ring-gray-100 dark:ring-offset-gray-900' : 'hover:scale-110'}
                     ${isFuture
                       ? 'bg-gray-50 dark:bg-gray-900 text-gray-300 dark:text-gray-700'
                       : INTENSITY_CLASSES[intensity]
                     }
-                    ${isToday ? 'ring-2 ring-primary-500 ring-offset-1 dark:ring-offset-gray-900' : ''}
+                    ${isToday && !isActive ? 'ring-2 ring-primary-500 ring-offset-1 dark:ring-offset-gray-900' : ''}
                   `}
                 >
                   {day}
@@ -449,13 +477,13 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* linha 2: meses em pill scrollável */}
-        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 overflow-x-auto scrollbar-hide">
+        {/* linha 2: meses distribuídos igualmente na largura toda */}
+        <div className="grid grid-cols-12 bg-gray-100 dark:bg-gray-800 rounded-2xl p-0.5 gap-0.5">
           {MONTH_NAMES.map((m, i) => (
             <button
               key={i + 1}
               onClick={() => setMonth(i + 1)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+              className={`py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 text-center ${
                 month === i + 1
                   ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Filter, Trash2, Edit2, ChevronUp, ChevronDown, RefreshCw, ScanLine, X } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Plus, Search, Filter, Trash2, Edit2, ChevronUp, ChevronDown, RefreshCw, ScanLine, X, Check, Minus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { transactionsAPI, cardsAPI } from '../api'
 import { usePlan } from '../hooks/usePlan'
@@ -25,6 +25,41 @@ const fmt = (v) =>
 const EMPTY_FILTERS = {
   search: '', category: '', type: '', start_date: '',
   end_date: '', min_amount: '', max_amount: '', card_id: ''
+}
+
+// ── Custom Checkbox ───────────────────────────────────
+function Checkbox({ checked, onChange, indeterminate = false }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate
+  }, [indeterminate])
+
+  return (
+    <label className="relative flex items-center justify-center w-5 h-5 cursor-pointer flex-shrink-0 group">
+      <input
+        ref={ref}
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="sr-only peer"
+      />
+      <div className={`
+        w-5 h-5 rounded-md border-2 flex items-center justify-center
+        transition-all duration-150
+        ${checked || indeterminate
+          ? 'bg-primary-500 border-primary-500 shadow-sm shadow-primary-500/30'
+          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 group-hover:border-primary-400 dark:group-hover:border-primary-500'
+        }
+      `}>
+        {indeterminate
+          ? <Minus size={11} className="text-white stroke-[3]" />
+          : checked
+            ? <Check size={11} className="text-white stroke-[3]" />
+            : null
+        }
+      </div>
+    </label>
+  )
 }
 
 export default function Transactions() {
@@ -162,12 +197,7 @@ export default function Transactions() {
       <div className={`flex items-center gap-3 px-4 py-3.5 border-b border-gray-100 dark:border-gray-800 last:border-0 transition-colors ${
         isChecked ? 'bg-red-50/60 dark:bg-red-900/10' : ''
       }`}>
-        <input
-          type="checkbox"
-          checked={isChecked}
-          onChange={() => toggleOne(t.id)}
-          className="w-4 h-4 rounded accent-primary-600 cursor-pointer flex-shrink-0"
-        />
+        <Checkbox checked={isChecked} onChange={() => toggleOne(t.id)} />
 
         {/* barra colorida lateral */}
         <div className={`w-1 self-stretch rounded-full flex-shrink-0 ${isIncome ? 'bg-primary-400' : 'bg-red-400'}`} />
@@ -388,12 +418,10 @@ export default function Transactions() {
           {/* MOBILE: lista de cards */}
           <div className="sm:hidden card overflow-hidden p-0">
             <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={allSelected}
-                ref={el => { if (el) el.indeterminate = someSelected && !allSelected }}
+                indeterminate={someSelected && !allSelected}
                 onChange={toggleAll}
-                className="w-4 h-4 rounded accent-primary-600 cursor-pointer"
               />
               <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 Selecionar todos
@@ -409,12 +437,10 @@ export default function Transactions() {
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
                     <th className="pl-4 pr-2 py-3 w-8">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={allSelected}
-                        ref={el => { if (el) el.indeterminate = someSelected && !allSelected }}
+                        indeterminate={someSelected && !allSelected}
                         onChange={toggleAll}
-                        className="w-4 h-4 rounded accent-primary-600 cursor-pointer"
                       />
                     </th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none" onClick={() => toggleSort('date')}>
@@ -436,7 +462,7 @@ export default function Transactions() {
                     return (
                       <tr key={t.id} className={`transition-colors ${isChecked ? 'bg-red-50/60 dark:bg-red-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}>
                         <td className="pl-4 pr-2 py-3 w-8">
-                          <input type="checkbox" checked={isChecked} onChange={() => toggleOne(t.id)} className="w-4 h-4 rounded accent-primary-600 cursor-pointer" />
+                          <Checkbox checked={isChecked} onChange={() => toggleOne(t.id)} />
                         </td>
                         <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
                           {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}

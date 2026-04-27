@@ -65,16 +65,7 @@ export default function Layout() {
     <>
       {/* Logo */}
       <div className="p-1 border-b border-gray-100 dark:border-gray-800">
-        <div className="flex items-center justify-between">
-          <img src="/gemini-svg.png" className="w-full h-30 object-contain" />
-          {/* Botão fechar — só visível no mobile */}
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="md:hidden p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            <X size={20} />
-          </button>
-        </div>
+        <img src="/gemini-svg.png" className="w-full h-30 object-contain" />
       </div>
 
       {/* Nav */}

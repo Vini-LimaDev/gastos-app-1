@@ -6,14 +6,21 @@ import { Mail, CheckCircle, Eye, EyeOff } from 'lucide-react'
 export default function Register() {
   const { register, loading } = useAuth()
   const navigate = useNavigate()
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' })
   const [error, setError] = useState('')
   const [pendingEmail, setPendingEmail] = useState(null)
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    if (form.password !== form.confirmPassword) {
+      setError('As senhas não coincidem.')
+      return
+    }
+
     const result = await register(form.name, form.email, form.password)
     if (!result.success) {
       setError(result.error)
@@ -138,6 +145,31 @@ export default function Register() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+            </div>
+            <div>
+              <label className="label">Confirmar senha</label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={form.confirmPassword}
+                  onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                  className="input-field pr-10"
+                  placeholder="Repita a senha"
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {form.confirmPassword && form.password !== form.confirmPassword && (
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1">As senhas não coincidem.</p>
+              )}
             </div>
             <button
               type="submit"
